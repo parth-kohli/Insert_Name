@@ -1,0 +1,2 @@
+Boeing’s $4.7 Billion Spirit AeroSystems Deal Cleared in U.K.
+⚠ Error fetching article: HTTP error fetching URL. Status=401, URL=[https://www.wsj.com/business/deals/boeings-4-7-billion-spirit-aerosystems-deal-gets-u-k-competition-authority-clearance-a695c39e]
