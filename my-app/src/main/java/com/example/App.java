@@ -2,7 +2,8 @@ package com.example;
 
 public class App {
     public static void main(String[] args) {
-        System.out.println("Hello, Maven! lala");
+        System.out.println("Hello, Maven! ");
         Preprocessor.main("Hi");
     }
 }
+
