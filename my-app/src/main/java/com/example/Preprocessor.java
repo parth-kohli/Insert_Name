@@ -3,39 +3,7 @@ package com.example;
 import java.util.ArrayList;
 import java.util.List;
 
-class TrieNode {
-    TrieNode[] children = new TrieNode[26];
-    boolean isEndOfWord = false;
-}
-class StopWordTrie {
-    private TrieNode root = new TrieNode();
-    public void insert(String word) {
-        word = word.toLowerCase();
-        TrieNode node = root;
-        for (char c : word.toCharArray()) {
-            if (!Character.isLetter(c)) continue;
-            int index = c - 'a';
-            if (node.children[index] == null) {
-                node.children[index] = new TrieNode();
-            }
-            node = node.children[index];
-        }
-        node.isEndOfWord = true;
-    }
-    public boolean contains(String word) {
-        word = word.toLowerCase();
-        TrieNode node = root;
-        for (char c : word.toCharArray()) {
-            if (!Character.isLetter(c)) continue;
-            int index = c - 'a';
-            if (node.children[index] == null) {
-                return false;
-            }
-            node = node.children[index];
-        }
-        return node.isEndOfWord;
-    }
-}
+
 public class Preprocessor {
     static String[] stopWordList = {
             "a","able","about","above","abroad","abst","accordance","according","accordingly","across",
