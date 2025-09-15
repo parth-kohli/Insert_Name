@@ -119,8 +119,16 @@ public class Preprocessor {
         return processed;
     }
     public static String[] Stemming(String text){
-        String[] stopWordRemoved = StopWordRemover(text);
-        return stopWordRemoved;
+    String[] stopWordRemoved = StopWordRemover(text);
+    List<String> stemmedWords = new ArrayList<>();
+    Stemmer stemmer = new Stemmer();
+    for (String word : stopWordRemoved) {
+        stemmer.add(word.toCharArray(), word.length());
+        stemmer.stem();
+        String stemmedWord = stemmer.toString();
+        stemmedWords.add(stemmedWord);
+    }
+    return stemmedWords.toArray(new String[0]);
     }
     public static Float Vectorization(String text){
         String[] stemmed = Stemming(text);
