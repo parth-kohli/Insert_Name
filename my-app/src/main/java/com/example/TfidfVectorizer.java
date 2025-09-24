@@ -37,7 +37,7 @@ public class TfidfVectorizer {
             int numDocsContainingWord = docFreq.getOrDefault(word, 0);
             double idf = Math.log((double) docCount / (numDocsContainingWord + 1)) + 1;
             idfScores.put(word, idf);
-            System.out.println(idfScores);
+           
         }
     
         this.vocabularyList = new ArrayList<>(this.vocabulary);
