@@ -92,6 +92,13 @@ public class Preprocessor {
             "would","wouldn't","www","x","y","yes","yet","you","youd","you'd",
             "you'll","your","youre","you're","yours","yourself","yourselves","you've","z","zero"
     };
+    private static final StopWordTrie stopWords;
+    static {
+        stopWords = new StopWordTrie();
+        for (String word : stopWordList) {
+            stopWords.insert(word);
+        }
+    }
     public static String[] removeStopWords(String[] text, StopWordTrie stopWords) {
         List<String> resultList = new ArrayList<>();
         for (String word : text) {
@@ -107,15 +114,9 @@ public class Preprocessor {
     }
     public static String[] StopWordRemover(String text){
         String[] tokenized = Tokenize(text);
-        StopWordTrie stopWords = new StopWordTrie();
-        for (String word : stopWordList) {
-            stopWords.insert(word);
-        }
+        
         String[] processed=removeStopWords(tokenized, stopWords);
-        for ( String i: processed){
-
-            System.out.println(i);
-        }
+        
         return processed;
     }
     public static String[] Stemming(String text){

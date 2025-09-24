@@ -245,7 +245,7 @@ class Stemmer
                     }
                  }
               }
-              if (ch < 0) break;
+              if (ch < 0) {break;}
               System.out.print((char)ch);
            }
          }
