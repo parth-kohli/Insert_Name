@@ -39,9 +39,8 @@ public class App {
         TfidfVectorizer vectorizer = new TfidfVectorizer();
         List<String> trainingCorpus = new ArrayList<>();
         List<String> trainingLabels = new ArrayList<>();
-        String trainingDataPath = "/Users/kevinkomban/Documents/SEM 3/Data Structures Lab/Project/Insert_Name/Model_Trainer"; 
+        String trainingDataPath = "C:\\Users\\parth\\Desktop\\Parthyo\\News\\Insert_Name\\model_trainer"; 
         loadDataFromDirectory(trainingDataPath, trainingCorpus, trainingLabels);
-        
         System.out.println("Loaded " + trainingCorpus.size() + " documents.");
         if (trainingCorpus.isEmpty()) {
             System.out.println("No training data found. Please check the '" + trainingDataPath + "' directory.");
