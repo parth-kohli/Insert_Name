@@ -20,10 +20,8 @@ public class TfidfVectorizer {
     public void fit(List<String> corpus) {
         Map<String, Integer> docFreq = new HashMap<>();
         int docCount = corpus.size();
-        List<String[]> processedCorpus = new ArrayList<>();
         for (String doc : corpus) {
             String[] tokens = Preprocessor.Stemming(doc);
-            processedCorpus.add(tokens);
             Set<String> uniqueTokens = new HashSet<>();
             for (String token : tokens) {
                 vocabulary.add(token);
@@ -39,10 +37,7 @@ public class TfidfVectorizer {
             idfScores.put(word, idf);
            
         }
-    
         this.vocabularyList = new ArrayList<>(this.vocabulary);
-        
-        
     }
 
     public Map<String, Double> transform(String document) {
