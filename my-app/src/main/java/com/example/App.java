@@ -2,8 +2,6 @@ package com.example;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +44,7 @@ public class App {
             System.out.println("No training data found. Please check the '" + trainingDataPath + "' directory.");
             return;
         }
+        fetchMultipleArticles.main(new String[]{});
         vectorizer.fit(trainingCorpus);
         List<double[]> trainingVectors = new ArrayList<>();
         for (String doc : trainingCorpus) {
@@ -72,17 +71,17 @@ public class App {
                               Federal investigators said they had reason to believe they would find classified records in the search of his house in Bethesda, Maryland.
                               His interactions with a classification expert in the federal government to remove classified details from his book manuscript in 2020 were part of the FBI\u2019s reasoning for the search, as was a foreign adversary\u2019s hack of his AOL account. CNN previously reported that the US intelligence community believes Bolton\u2019s emails may have been intercepted by China, Russia or Iran.
                               """ ;
-        System.out.println("Raw sentence: \"" + testSentence + "\"");
+        //System.out.println("Raw sentence: \"" + testSentence + "\"");
         double[] testVector = vectorizer.transformToVector(testSentence);
         String predictedClass = classifier.predict(testVector);
-        System.out.println("Predicted Class: " + predictedClass);
+        //System.out.println("Predicted Class: " + predictedClass);
         Map<String, Double> probabilities = classifier.predict_proba(testVector);
 
         System.out.println("\nConfidence Scores:");
         probabilities.entrySet().stream()
             .sorted(Map.Entry.<String, Double>comparingByValue().reversed()) 
             .forEach(entry -> {
-                System.out.printf("  - %s: %.2f%%\n", entry.getKey(), entry.getValue() * 100);
+                //System.out.printf("  - %s: %.2f%%\n", entry.getKey(), entry.getValue() * 100);
             });
     }
 }

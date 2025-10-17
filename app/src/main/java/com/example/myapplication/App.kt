@@ -1,4 +1,4 @@
-package com.example.myapplication
+    package com.example.myapplication
 
 import android.annotation.SuppressLint
 import android.window.SplashScreen
@@ -135,7 +135,6 @@ fun LoadingScreen() {
             color = Color(0xFF4FC3F7)
         )
         Spacer(modifier = Modifier.width(20.dp))
-
         PulsingShape(
             delayMillis = 300,
             shapeType = ShapeType.Square,
