@@ -1,5 +1,6 @@
 package com.example.myapplication.screens
 
+import android.content.Intent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -20,10 +21,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Divider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -47,11 +53,19 @@ import androidx.compose.ui.graphics.PaintingStyle.Companion.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.example.myapplication.data.fetchBiasedNews
+import com.example.myapplication.data.isArticleSaved
+import com.example.myapplication.data.removeArticle
+import com.example.myapplication.data.saveArticle
+import com.example.myapplication.data.savedArticles
+import com.example.myapplication.response.BiasedArticles
 
 
 @Composable
@@ -160,21 +174,56 @@ fun TabButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
 }
 @Composable
 fun ArticleContent(article: NewsArticle) {
+    val saved = remember { mutableStateOf(false) }
+    LaunchedEffect(Unit, savedArticles.size) {
+        saved.value = isArticleSaved(article)
+    }
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            // Article Image
-            AsyncImage(
-                model = article.imageUrl,
-                contentDescription = "Article Image",
-                contentScale = ContentScale.Crop,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(16.dp))
-            )
+                    .aspectRatio(16f / 9f)) {
+                AsyncImage(
+                    model = article.imageUrl,
+                    contentDescription = "Article Image",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f)
+                        .clip(RoundedCornerShape(16.dp))
+                )
+                Row(Modifier.fillMaxWidth().padding(20.dp), horizontalArrangement = Arrangement.End) {
+                        IconButton({if (saved.value) removeArticle(article) else saveArticle(article) }, Modifier.padding(5.dp).clip(CircleShape).background(Color.Black.copy(alpha=0.65f))){
+                            if (saved.value) Icon(Icons.Default.Bookmark, "", Modifier.size(30.dp), tint = Color.White)
+                            else Icon(Icons.Outlined.BookmarkBorder, "", Modifier.size(30.dp))
+                        }
+                        val context= LocalContext.current
+
+
+                        IconButton({
+                            val deepLinkUrl = "newsapp://article/${article.id}"
+                            val shareText = """
+                            Check out this article:
+                             *${article.headline}*
+                             Open in our app: $deepLinkUrl""".trimIndent()
+                            val sendIntent = Intent().apply {
+                                action = Intent.ACTION_SEND
+                                putExtra(Intent.EXTRA_TEXT, shareText)
+                                putExtra(Intent.EXTRA_SUBJECT, article.headline)
+                                type = "text/plain"
+                            }
+                            val shareIntent = Intent.createChooser(sendIntent, "Share Article")
+                            context.startActivity(shareIntent)
+                        }, Modifier.padding(5.dp).clip(CircleShape).background(Color.Black.copy(alpha=0.65f))){
+                            Icon(Icons.Default.Share, "", Modifier.size(30.dp), tint = Color.White)
+                        }
+
+                }
+            }
         }
         item {
             // Headline
@@ -229,14 +278,29 @@ data class PieChartSlice(val label: String, val value: Float, val color: Color)
 
 @Composable
 fun AnalyticsContent(article: NewsArticle) {
-    // 1. Prepare the data for the pie chart
+    val biasedArticles= fetchBiasedNews(article.id)
+    var left = article.leftBias
+    var right = article.rightBias
+    var center = article.centerBias
+    for (bias in biasedArticles){
+        left += bias.leftBias
+        right += bias.rightBias
+        center += bias.centerBias
+    }
+    left /= biasedArticles.size+1
+    right /= biasedArticles.size+1
+    center /= biasedArticles.size+1
+    val leftArticle= biasedArticles.maxBy { it.leftBias }
+    val rightArticle= biasedArticles.maxBy { it.rightBias }
+    val centerArticle= biasedArticles.maxBy { it.centerBias }
+
     val pieChartData = listOf(
-        PieChartSlice("Left", article.leftBias, Color(0xFF3B82F6)),   // Blue
-        PieChartSlice("Center", article.centerBias, Color(0xFF8B5CF6)), // Purple
-        PieChartSlice("Right", article.rightBias, Color(0xFFEF4444))    // Red
+        PieChartSlice("Left", left, Color(0xFF3B82F6)),   // Blue
+        PieChartSlice("Center", center, Color(0xFF8B5CF6)), // Purple
+        PieChartSlice("Right", right, Color(0xFFEF4444))    // Red
     )
 
-    Column(
+    LazyColumn (state = rememberLazyListState(),
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp).clip(RoundedCornerShape(24.dp)).background(
@@ -273,24 +337,107 @@ fun AnalyticsContent(article: NewsArticle) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(32.dp)
     ) {
-        Text(
-            "Bias Analysis",
-            style = MaterialTheme.typography.headlineSmall,
-            color = Color.White,
-            fontWeight = FontWeight.Bold
-        )
+        item() {
+            Text(
+                "Bias Analysis",
+                style = MaterialTheme.typography.headlineSmall,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        item() {
+            AnimatedPieChart(
+                data = pieChartData,
+                modifier = Modifier.size(200.dp) // Control the size of the chart here
+            )
+        }
 
-        // 2. Call the animated pie chart composable
-        AnimatedPieChart(
-            data = pieChartData,
-            modifier = Modifier.size(200.dp) // Control the size of the chart here
-        )
+        item() {
+            ChartLegend(data = pieChartData)
+        }
+        item {
+            // Add a divider for better visual separation
+            Divider(
+                modifier = Modifier.padding(vertical = 16.dp),
+                color = Color.White.copy(alpha = 0.2f)
+            )
+        }
+        item {
+            // 3. Add the new Perspective360View
+            Perspective360View(
+                leftArticle = leftArticle,
+                centerArticle = centerArticle,
+                rightArticle = rightArticle
+            )
+        }
 
-        // 3. Display the legend for the chart
-        ChartLegend(data = pieChartData)
     }
 }
 
+@Composable
+fun Perspective360View(
+    leftArticle: BiasedArticles?,
+    centerArticle: BiasedArticles?,
+    rightArticle: BiasedArticles?
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            "360° View",
+            style = MaterialTheme.typography.headlineSmall,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        )
+
+        // Display a card for each perspective if an article is found
+        leftArticle?.let {
+            PerspectiveCard(article = it, biasColor = Color(0xFF3B82F6)) // Blue
+        }
+        centerArticle?.let {
+            PerspectiveCard(article = it, biasColor = Color(0xFF8B5CF6)) // Purple
+        }
+        rightArticle?.let {
+            PerspectiveCard(article = it, biasColor = Color(0xFFEF4444)) // Red
+        }
+    }
+}
+
+/**
+ * A single glass card that displays the description and source for one biased perspective.
+ */
+@Composable
+fun PerspectiveCard(article: BiasedArticles, biasColor: Color) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(biasColor.copy(alpha = 0.5f))
+            .border(1.dp, biasColor.copy(alpha = 0.8f), RoundedCornerShape(16.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Source of the biased article
+        Text(
+            text = article.source,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp
+        )
+        // Description from the biased article
+        Text(
+            text = "\"${article.description}\"",
+            color = Color.White,
+            fontSize = 14.sp,
+            fontStyle = FontStyle.Italic,
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis,
+            lineHeight = 20.sp
+        )
+    }
+}
 
 /**
  * The main composable that draws and animates the pie chart slices.

@@ -150,10 +150,10 @@ fun SearchScreen(innerPadding: PaddingValues, onBackPressed: () -> Unit, onArtic
                 } else {
                     LazyColumn(state = rememberLazyListState()) {
                         items(searchResults.value) { article ->
-                            NewsBlock(newsArticle = article){
+                            NewsBlock(newsArticle = article, {
                                 onArticleClick(it)
 
-                            }
+                            })
                         }
                     }
                 }

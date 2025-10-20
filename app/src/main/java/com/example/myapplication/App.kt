@@ -1,6 +1,7 @@
     package com.example.myapplication
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Build
 import android.window.SplashScreen
 import androidx.activity.compose.BackHandler
@@ -16,6 +17,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -84,11 +87,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.example.myapplication.data.allNewsArticles
 import com.example.myapplication.response.NewsArticle
 import com.example.myapplication.screens.ArticleScreen
 import com.example.myapplication.screens.HomeScreen
 import com.example.myapplication.screens.OnboardingScreen
+import com.example.myapplication.screens.SavedScreen
 import com.example.myapplication.screens.SearchScreen
 import kotlinx.coroutines.delay
     object Routes {
@@ -103,8 +108,6 @@ import kotlinx.coroutines.delay
     @Composable
     fun App(modifier: Modifier = Modifier) {
         val navController = rememberNavController()
-
-        // A helper to determine if the bottom bar should be shown
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route
 
@@ -168,12 +171,46 @@ import kotlinx.coroutines.delay
 
                     composable(Routes.SAVED) {
                         // SavedScreen()
-                        Text("Saved Screen", color = Color.White) // Placeholder
+                        SavedScreen (innerPadding){ articleId ->
+                            navController.navigate("article/$articleId")
+                        } // Placeholder
                     }
 
                     composable(
                         route = Routes.ARTICLE,
-                        arguments = listOf(navArgument("articleId") { type = NavType.IntType })
+                        deepLinks = listOf(
+                            navDeepLink {
+                                // Match the custom scheme
+                                uriPattern = "newsapp://article/{articleId}"
+                                action = Intent.ACTION_VIEW
+                            }),
+                        arguments = listOf(navArgument("articleId") { type = NavType.IntType }),
+
+                            enterTransition = {
+                                slideInHorizontally(
+                                    initialOffsetX = { fullWidth -> fullWidth },
+                                    animationSpec = tween(300)
+                                )
+                            },
+                            exitTransition = {
+                                slideOutHorizontally(
+                                    targetOffsetX = { fullWidth -> -fullWidth },
+                                    animationSpec = tween(300)
+                                )
+                            },
+                            popEnterTransition = {
+                                slideInHorizontally(
+                                    initialOffsetX = { fullWidth -> -fullWidth },
+                                    animationSpec = tween(300)
+                                )
+                            },
+                            popExitTransition = {
+                                slideOutHorizontally(
+                                    targetOffsetX = { fullWidth -> fullWidth },
+                                    animationSpec = tween(300)
+                                )
+                            }
+
                     ) { backStackEntry ->
                         val articleId = backStackEntry.arguments?.getInt("articleId")
                         ArticleScreen(innerPadding, allNewsArticles[allNewsArticles.indexOfFirst ({ it.id == articleId!!})]) { navController.popBackStack()} // Placeholder

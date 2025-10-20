@@ -3,6 +3,7 @@ package com.example.myapplication.data
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.toMutableStateList
 import com.example.myapplication.response.BiasedArticles
 import com.example.myapplication.response.NewsArticle
 
@@ -20,7 +21,7 @@ val allNewsArticles = listOf(
         rightBias = 0.05f,
         source = "Reuters"
     ), NewsArticle(id=2, headline="Administration Proposes Public Option to Compete with Private Insurers", description="The new healthcare proposal includes a government-run health insurance plan that would be offered on the ACA marketplace alongside private plans.", article="Officials state the goal is to lower costs and increase competition. The plan would be available to all Americans who are not covered by employer-based insurance.", imageUrl="https://fortune.com/img-assets/wp-content/uploads/2025/10/AP25291503821922-e1760827684264.jpg?resize=1200,600", date="2025-10-19", category="Healthcare", centerBias=0.90f, leftBias=0.05f, rightBias=0.05f, source="Associated Press"), NewsArticle(id=3, headline="U.S. and European Union Finalize New Trans-Atlantic Trade Pact", description="After months of negotiations, a new trade agreement has been reached, aiming to reduce tariffs and streamline regulations on goods and services.", article="The pact covers a wide range of sectors, including agriculture, technology, and automotive manufacturing. It is expected to be signed into law early next year.", imageUrl="https://s.yimg.com/ny/api/res/1.2/8qoMx30SKUjTBGjczo3Wig--/YXBwaWQ9aGlnaGxhbmRlcjt3PTEyMDA7aD02NzU7Y2Y9d2VicA--/https://media.zenfs.com/en/thedailybeast.com/b2c0e9951cfdfda752df8bfad6c7a59e", date="2025-10-18", category="World News", centerBias=0.88f, leftBias=0.07f, rightBias=0.05f, source="Reuters"), NewsArticle(id=4, headline="NASA's Artemis Mission Successfully Enters Lunar Orbit", description="The uncrewed Orion spacecraft has successfully performed a critical engine burn to enter a distant retrograde orbit around the Moon.", article="This milestone marks a key step in the Artemis program, which aims to return astronauts to the lunar surface within the decade and establish a sustainable presence.", imageUrl="https://www.motherjones.com/wp-content/uploads/2025/10/2025-march-flag.jpg?w=1200&h=630&crop=1", date="2025-10-17", category="Science", centerBias=0.95f, leftBias=0.03f, rightBias=0.02f, source="Associated Press"), NewsArticle(id=5, headline="Federal Minimum Wage Increase to $15 Faces Key Vote in Congress", description="A bill that would gradually raise the federal minimum wage to $15 per hour by 2028 is scheduled for a vote this week.", article="Proponents argue it will lift millions out of poverty, while opponents warn it could lead to job losses and inflation. The outcome of the vote is uncertain.", imageUrl="https://fortune.com/img-assets/wp-content/uploads/2025/10/AP25291503821922-e1760827684264.jpg?resize=1200,600", date="2025-10-16", category="Politics", centerBias=0.80f, leftBias=0.10f, rightBias=0.10f, source="C-SPAN"), NewsArticle(id=6, headline="President Nominates Federal Judge to Fill Supreme Court Vacancy", description="The President announced the nomination of a respected federal appellate court judge to fill the seat left vacant by a recent retirement.", article="The nominee has served on the federal bench for over a decade and is known for a lengthy record of judicial opinions. Confirmation hearings are expected to begin next month.", imageUrl="https://s.yimg.com/ny/api/res/1.2/8qoMx30SKUjTBGjczo3Wig--/YXBwaWQ9aGlnaGxhbmRlcjt3PTEyMDA7aD02NzU7Y2Y9d2VicA--/https://media.zenfs.com/en/thedailybeast.com/b2c0e9951cfdfda752df8bfad6c7a59e", date="2025-10-15", category="Politics", centerBias=0.90f, leftBias=0.05f, rightBias=0.05f, source="Associated Press"), NewsArticle(id=7, headline="Leading Social Media Platform Faces Congressional Inquiry Over Algorithm", description="Lawmakers have called the CEO of a major social media company to testify regarding how the platform's content algorithm operates and its potential societal impact.", article="The inquiry will focus on concerns about the algorithm's role in promoting misinformation and its effects on the mental health of younger users.", imageUrl="https://www.motherjones.com/wp-content/uploads/2025/10/2025-march-flag.jpg?w=1200&h=630&crop=1", date="2025-10-14", category="Technology", centerBias=0.85f, leftBias=0.10f, rightBias=0.05f, source="Reuters"), NewsArticle(id=8, headline="Massive Infrastructure Bill Passes House, Moves to Senate", description="The House of Representatives passed a $1.2 trillion infrastructure bill aimed at modernizing roads, bridges, public transit, and the energy grid.", article="The bill, which received some bipartisan support, now faces a challenging path in the closely divided Senate, where several amendments are expected to be introduced.", imageUrl="https://fortune.com/img-assets/wp-content/uploads/2025/10/AP25291503821922-e1760827684264.jpg?resize=1200,600", date="2025-10-13", category="Politics", centerBias=0.88f, leftBias=0.08f, rightBias=0.04f, source="Associated Press"), NewsArticle(id=9, headline="Department of Agriculture Announces Changes to Farm Subsidy Program", description="The USDA has issued new rules that will change how federal subsidies are calculated and distributed to farmers, effective next year.", article="The changes are intended to provide more support to small and mid-sized family farms and encourage more sustainable farming practices.", imageUrl="https://s.yimg.com/ny/api/res/1.2/8qoMx30SKUjTBGjczo3Wig--/YXBwaWQ9aGlnaGxhbmRlcjt3PTEyMDA7aD02NzU7Y2Y9d2VicA--/https://media.zenfs.com/en/thedailybeast.com/b2c0e9951cfdfda752df8bfad6c7a59e", date="2025-10-12", category="Agriculture", centerBias=0.90f, leftBias=0.05f, rightBias=0.05f, source="Reuters"), NewsArticle(id=10, headline="New Federal Guidelines for Standardized Testing in Public Schools Released", description="The Department of Education has released new guidelines that give states more flexibility in how they design and implement standardized tests.", article="The policy shifts away from the rigid federal mandates of the past two decades, encouraging states to develop more holistic assessment methods.", imageUrl="https://www.motherjones.com/wp-content/uploads/2025/10/2025-march-flag.jpg?w=1200&h=630&crop=1", date="2025-10-11", category="Education", centerBias=0.85f, leftBias=0.10f, rightBias=0.05f, source="Education Week"))
-
+val savedArticles = allNewsArticles.filter { it.id%2==0 }.toMutableStateList()
 val recentlySearched = mutableListOf<String>("Trump", "Potatoes", "Japanese People", "NASA's Artemis", "Federal")
 val allBiasedArticles = listOf(
     BiasedArticles(
@@ -46,6 +47,7 @@ fun fetchBiasedNews(id:Int): List<BiasedArticles>{
 fun searchNewsArticles(query: String): List<NewsArticle> {
     if (query.isBlank()) return emptyList()
     val lowerCaseQuery = query.lowercase()
+
     return allNewsArticles.filter {
         it.headline.lowercase().contains(lowerCaseQuery) ||
                 it.description.lowercase().contains(lowerCaseQuery) ||
@@ -68,4 +70,16 @@ fun addSearchToCache(query: String) {
 
 fun removeSearchFromCache(query: String) {
     recentlySearched.remove(query)
+}
+fun saveArticle(Article: NewsArticle){
+    savedArticles.add(Article)
+}
+fun removeArticle(Article: NewsArticle){
+    savedArticles.remove(Article)
+}
+fun isArticleSaved(Article: NewsArticle): Boolean{
+    return savedArticles.contains(Article)
+}
+fun getSavedArticles(): MutableList<NewsArticle>{
+    return savedArticles
 }

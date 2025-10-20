@@ -44,6 +44,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material3.Icon
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -72,7 +75,7 @@ fun HomeScreen(innerPadding: PaddingValues, onArticleClick: (Int)->Unit){
                 }
                 items(newsArticles.size) { index ->
                     val newsArticle = newsArticles[index]
-                    NewsBlock(newsArticle){onArticleClick(it)}
+                    NewsBlock(newsArticle, {onArticleClick(it)})
                 }
             }
 
@@ -80,7 +83,7 @@ fun HomeScreen(innerPadding: PaddingValues, onArticleClick: (Int)->Unit){
         }
 }
 @Composable
-fun NewsBlock(newsArticle: NewsArticle, onArticleClick: (Int) -> Unit){
+fun NewsBlock(newsArticle: NewsArticle, onArticleClick: (Int) -> Unit, saved: Boolean = false){
     Spacer(modifier = Modifier.height(15.dp))
     Box(
         modifier = Modifier
@@ -148,6 +151,11 @@ fun NewsBlock(newsArticle: NewsArticle, onArticleClick: (Int) -> Unit){
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     // Muted for secondary info
                 )
+            }
+        }
+        if (saved){
+            Row(Modifier.fillMaxWidth().padding()) {
+                Icon(Icons.Default.Bookmark, "", tint = Color.White)
             }
         }
     }
