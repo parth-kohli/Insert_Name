@@ -51,7 +51,7 @@ class Article {
 
 public class fetchMultipleArticles {
 
-    private static final String API_KEY = "273f886cd7b0434eaf76f112fd6b05fe";
+    private static final String API_KEY = "e8efcdd3703b4e58b9b3f207e4591d95";
     private static final String CACHE_FILE = "cached_articles"+LocalDate.now().toString()+".json";
     private static final HttpClient client = HttpClient.newHttpClient();
     private static final Set<String> STOP_WORDS = Set.of("a", "an", "the", "in", "on", "at", "for", "with", "is", "are", "was", "were", "to", "of", "and", "says", "posts", "after", "by");
@@ -164,6 +164,7 @@ public class fetchMultipleArticles {
                 if (!"ok".equals(json.optString("status"))) continue;
 
                 JSONArray articles = json.getJSONArray("articles");
+
                 for (int i = 0; i < articles.length(); i++) {
                     JSONObject articleJson = articles.getJSONObject(i);
                     String title = articleJson.optString("title");
@@ -171,6 +172,10 @@ public class fetchMultipleArticles {
                         continue;
                     }
                     articleSet.add(new Article(title, articleJson.getString("url"), articleJson.getJSONObject("source").getString("name"), articleJson.getString("publishedAt")));
+                    if (i==0){
+                        System.out.println(articleJson.getString("urlToImage"));
+
+                    }
                 }
             } catch (Exception e) {
                 System.err.println("Failed to fetch from " + domain + ". Error: " + e.getMessage());

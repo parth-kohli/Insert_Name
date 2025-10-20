@@ -44,7 +44,7 @@ class MainActivity : ComponentActivity() {
                         enter= slideInHorizontally(animationSpec = tween(durationMillis = 500)){fullWidth -> fullWidth},
                         exit = slideOutHorizontally(animationSpec = tween(durationMillis = 500)){fullWidth -> -fullWidth}
                     ){
-                        app(modifier=Modifier.padding(innerPadding))
+                        App(modifier=Modifier.padding(innerPadding))
                     }
                 }
             }

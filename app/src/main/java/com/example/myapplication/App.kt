@@ -1,8 +1,13 @@
     package com.example.myapplication
 
 import android.annotation.SuppressLint
+import android.os.Build
 import android.window.SplashScreen
+import androidx.activity.compose.BackHandler
+import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColor
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -14,6 +19,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -32,20 +39,28 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MaterialTheme.colorScheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
@@ -55,19 +70,235 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.Path
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.example.myapplication.data.allNewsArticles
+import com.example.myapplication.response.NewsArticle
+import com.example.myapplication.screens.ArticleScreen
+import com.example.myapplication.screens.HomeScreen
 import com.example.myapplication.screens.OnboardingScreen
+import com.example.myapplication.screens.SearchScreen
 import kotlinx.coroutines.delay
+    object Routes {
+        const val ONBOARDING = "onboarding"
+        const val HOME = "home"
+        const val SEARCH = "search"
+        const val SAVED = "saved"
+        // This route includes a placeholder for the article ID
+        const val ARTICLE = "article/{articleId}"
+    }
+    @RequiresApi(Build.VERSION_CODES.O)
+    @Composable
+    fun App(modifier: Modifier = Modifier) {
+        val navController = rememberNavController()
 
-@Composable
-fun app(modifier :Modifier){
-    OnboardingScreen(onFinish = {})
+        // A helper to determine if the bottom bar should be shown
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentRoute = navBackStackEntry?.destination?.route
 
-}
+        val showBottomBar = currentRoute in listOf(Routes.HOME, Routes.SEARCH, Routes.SAVED)
+
+        Column(
+            Modifier
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF0A0A12),
+                            Color(0xFF1C1B3A),
+                            Color(0xFF2E2B60),
+                            Color(0xFF4338CA)
+                        ),
+                        start = Offset(0f, 0f),
+                        end = Offset(1200f, 1800f)
+                    )
+                )
+                .fillMaxSize()
+        ) {
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                containerColor = Color.Transparent,
+                bottomBar = {
+                    // Only show the bottom bar on the main screens
+                    if (showBottomBar) {
+                        GradientBottomNavBar(navController = navController)
+                    }
+                }
+            ) { innerPadding ->
+                // NavHost is where your screens are swapped
+                NavHost(
+                    navController = navController,
+                    startDestination = Routes.ONBOARDING,
+                    modifier = Modifier.padding()
+                ) {
+                    composable(Routes.ONBOARDING) {
+                        OnboardingScreen(onFinish = {
+                            // Navigate to home and clear the onboarding screen from the back stack
+                            navController.navigate(Routes.HOME) {
+                                popUpTo(Routes.ONBOARDING) {
+                                    inclusive = true
+                                }
+                            }
+                        })
+                    }
+
+                    composable(Routes.HOME) {
+                        HomeScreen(innerPadding){ articleId ->
+                            navController.navigate("article/$articleId")
+                        }
+                    }
+
+                    composable(Routes.SEARCH) {
+                        // SearchScreen()
+                        SearchScreen(innerPadding, onBackPressed = {navController.popBackStack()}){ articleId ->
+                            navController.navigate("article/$articleId")
+                        }  // Placeholder
+                    }
+
+                    composable(Routes.SAVED) {
+                        // SavedScreen()
+                        Text("Saved Screen", color = Color.White) // Placeholder
+                    }
+
+                    composable(
+                        route = Routes.ARTICLE,
+                        arguments = listOf(navArgument("articleId") { type = NavType.IntType })
+                    ) { backStackEntry ->
+                        val articleId = backStackEntry.arguments?.getInt("articleId")
+                        ArticleScreen(innerPadding, allNewsArticles[allNewsArticles.indexOfFirst ({ it.id == articleId!!})]) { navController.popBackStack()} // Placeholder
+                    }
+                }
+            }
+        }
+    }
+    data class BottomNavItem(
+        val icon: ImageVector,
+        val name: String,
+        val route: String
+    )
+
+
+    @Composable
+    fun GradientBottomNavBar(navController: NavController) {
+        // 1. Define your navigation items, now with their corresponding routes
+        val navItems = listOf(
+            BottomNavItem(icon = Icons.Default.Home, name = "Home", route = "home"),
+            BottomNavItem(icon = Icons.Default.Search, name = "Search", route = "search"),
+            BottomNavItem(icon = Icons.Default.Bookmark, name = "Saved", route = "saved")
+        )
+
+        // Observe the navigation back stack to determine the current route
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentRoute = navBackStackEntry?.destination?.route
+
+        // Main container with the purple-to-black gradient
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(80.dp) // Explicit height for a clean look
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFF3F006D), // A dark, rich purple
+                            Color(0xFF000000)  // Pure black
+                        )
+                    )
+                )
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                navItems.forEach { item ->
+                    // 2. Determine if the item is selected based on the current route
+                    val isSelected = currentRoute == item.route
+
+                    // This Box is the main container for each item
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .animateContentSize()
+                            .clip(RoundedCornerShape(50)) // Pill/Circle shape
+                            .then(
+                                if (isSelected) {
+                                    Modifier
+                                        .background(
+                                            Brush.linearGradient(
+                                                colors = listOf(
+                                                    Color.White.copy(alpha = 0.25f),
+                                                    Color.White.copy(alpha = 0.1f)
+                                                )
+                                            )
+                                        )
+                                        .border(
+                                            width = 1.dp,
+                                            brush = Brush.linearGradient(
+                                                colors = listOf(
+                                                    Color.White.copy(alpha = 0.4f),
+                                                    Color.White.copy(alpha = 0.15f)
+                                                )
+                                            ),
+                                            shape = RoundedCornerShape(50)
+                                        )
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            // 3. The clickable modifier now uses the NavController
+                            .clickable {
+                                navController.navigate(item.route) {
+                                    // Pop up to the start destination to avoid building a large back stack
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    // Avoid re-launching the same screen
+                                    launchSingleTop = true
+                                    // Restore state when re-selecting a previously selected item
+                                    restoreState = true
+                                }
+                            }
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = item.icon,
+                                contentDescription = item.name,
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp)
+                            )
+
+                            AnimatedVisibility(visible = isSelected) {
+                                Text(
+                                    text = item.name,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(start = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun SplashScreen(modifier :Modifier, doneLoading: () -> Unit    ){
