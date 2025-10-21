@@ -107,6 +107,7 @@ import kotlinx.coroutines.delay
     @RequiresApi(Build.VERSION_CODES.O)
     @Composable
     fun App(modifier: Modifier = Modifier) {
+
         val navController = rememberNavController()
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route
