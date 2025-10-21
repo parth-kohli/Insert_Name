@@ -59,7 +59,6 @@ dependencies {
     implementation(libs.ui.graphics)
     implementation(libs.androidx.compose.material.core)
     implementation("androidx.compose.material:material-icons-extended:<compose_version>")
-    implementation(libs.androidx.room.compiler)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -74,11 +73,16 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.7")
     val room_version = "2.6.1"
     implementation ("androidx.room:room-runtime:$room_version")
-    ksp("androidx.room:room-compiler:$room_version")
+    ksp("androidx.room:room-compiler:2.6.1") {
+        exclude(group = "com.intellij", module = "annotations")
+    }
     implementation("androidx.room:room-ktx:$room_version")
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-ui:1.3.1")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
 
 }

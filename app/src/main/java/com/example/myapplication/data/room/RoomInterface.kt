@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.example.myapplication.response.BiasedArticles
 import com.example.myapplication.response.NewsArticle
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface NewsArticleDao {
@@ -74,12 +75,32 @@ interface SavedArticleDao {
     suspend fun getAll(): List<NewsArticle>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(article: NewsArticle)
+    suspend fun insert(article: SavedArticles)
 
     @Delete
-    suspend fun delete(article: NewsArticle)
+    suspend fun delete(article: SavedArticles)
 
     @Query("DELETE FROM saved_articles")
     suspend fun clearAll()
 }
+@Dao
+interface SearchedItemsDao {
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSearchItem(item: SearchedItems)
+    @Delete
+    suspend fun deleteSearchItem(item: SearchedItems)
+
+    @Query("SELECT * FROM searched_items ORDER BY id DESC")
+    fun getAllSearchItems(): Flow<List<SearchedItems>>
+
+    @Query("SELECT * FROM searched_items ORDER BY id DESC")
+    suspend fun getAllSearchItemsList(): List<SearchedItems>
+
+    @Query("SELECT COUNT(*) FROM searched_items")
+    suspend fun getCount(): Int
+    @Query("DELETE FROM searched_items WHERE id = (SELECT MIN(id) FROM searched_items)")
+    suspend fun deleteOldestItem()
+    @Query("DELETE FROM searched_items")
+    suspend fun clearAll()
+}

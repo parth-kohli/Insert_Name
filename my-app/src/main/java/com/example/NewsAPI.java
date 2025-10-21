@@ -1,6 +1,9 @@
 package com.example;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -32,17 +35,18 @@ public class NewsAPI {
 
     // Endpoint for: searchNewsArticles(query)
     @GetMapping("/news/search")
-    public List<NewsArticle> searchArticles(@RequestParam String query) {
+    public List<NewsArticle> searchArticles(@RequestParam String query, @PageableDefault(size = 20, sort = "date", direction = Sort.Direction.DESC)
+    Pageable pageable) {
         if (query.isBlank()) {
             return Collections.emptyList();
         }
-        return newsArticleRepository.searchByKeyword(query);
+        return newsArticleRepository.searchByKeyword(query, pageable);
     }
 
     // Endpoint for: searchCategories(category)
     @GetMapping("/news/category")
     public List<NewsArticle> getArticlesByCategory(@RequestParam String name) {
-        return newsArticleRepository.findByCategoryIgnoreCase(name);
+        return newsArticleRepository.findTop20ByCategoryIgnoreCaseOrderByDateDesc(name);
     }
     @GetMapping("/news/today")
     public List<NewsArticle> getTodaysNews() {

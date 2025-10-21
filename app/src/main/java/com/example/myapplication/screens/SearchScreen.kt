@@ -1,6 +1,8 @@
 package com.example.myapplication.screens
 
+import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -42,9 +44,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.example.myapplication.LoadingScreen
 import com.example.myapplication.allNewsCategories
 import com.example.myapplication.data.*
+import com.example.myapplication.data.ViewModels.SearchViewModel
+import com.example.myapplication.data.room.SearchedItems
 import com.example.myapplication.response.NewsArticle
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 
 /**
@@ -61,62 +67,60 @@ enum class SearchState {
  * The main composable for the search feature screen.
  * It manages the UI state and orchestrates the different components.
  */
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun SearchScreen(innerPadding: PaddingValues, onBackPressed: () -> Unit, onArticleClick: (Int) -> Unit) {
-
+fun SearchScreen(innerPadding: PaddingValues, searchViewModel: SearchViewModel, onBackPressed: () -> Unit, onArticleClick: (Int) -> Unit) {
+    val results= searchViewModel.articles.collectAsState()
+    val isLoading = searchViewModel.isLoading.collectAsState()
     val query = remember { mutableStateOf("") }
     val searchState = remember { mutableStateOf(SearchState.DEFAULT) }
     val selectedCategory = remember { mutableStateOf<String?>(null) }
     val searchResults = remember { mutableStateOf<List<NewsArticle>>(emptyList()) }
     val recentSearches = remember { mutableStateListOf<String>() }
-
-    // This effect handles the data fetching and state transitions for searching.
+    val searchedItems = searchViewModel.results.collectAsState()
+    LaunchedEffect(Unit) {
+        searchViewModel.getRecentSearches()
+    }
+    LaunchedEffect(isLoading.value) {
+        println(results)
+        if (!isLoading.value && searchState.value == SearchState.SEARCHING){
+            searchResults.value = results.value
+            searchState.value = SearchState.SEARCHED
+        }
+    }
     LaunchedEffect(searchState.value) {
         if (searchState.value == SearchState.SEARCHING) {
-            val results = if (query.value.isNotBlank()) {
-                searchNewsArticles(query.value)
+            if (query.value.isNotBlank()) {
+                searchViewModel.search(query.value,0)
             } else if (selectedCategory.value != null) {
-                searchCategories(selectedCategory.value!!)
-            } else {
-                emptyList()
+                searchViewModel.category(selectedCategory.value!!.lowercase())
             }
-            // Simulate a network delay for a better user experience
-            delay(1000)
-            searchResults.value = results
-            searchState.value = SearchState.SEARCHED
+
         } else if (searchState.value == SearchState.DEFAULT) {
-            // Clear results and category when returning to the default state
             searchResults.value = emptyList()
             selectedCategory.value = null
             query.value = ""
         } else if (searchState.value == SearchState.ACTIVE) {
-            // Refresh the list of recent searches when the bar is activated
             recentSearches.clear()
             recentSearches.addAll(getCachedSearchResults())
         }
     }
-
-    // Custom back handling for the different search states
     BackHandler {
         when {
             searchState.value != SearchState.DEFAULT -> searchState.value = SearchState.DEFAULT
             else -> onBackPressed()
         }
     }
-
     Column(Modifier.fillMaxSize().padding(innerPadding)) {
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(12.dp))
 
         GlassSearchBar(
             query = query,
             searchState = searchState,
             onSearch = { searchText ->
-                addSearchToCache(searchText)
                 searchState.value = SearchState.SEARCHING
             }
         )
-
-        // Main content area that changes based on the current search state
         when (searchState.value) {
             SearchState.DEFAULT -> {
                 CategorySelectionGrid { category ->
@@ -126,20 +130,20 @@ fun SearchScreen(innerPadding: PaddingValues, onBackPressed: () -> Unit, onArtic
             }
             SearchState.ACTIVE -> {
                 RecentSearches(
-                    recentSearches = recentSearches,
+                    recentSearches = searchedItems.value,
                     onItemClick = { search ->
                         query.value = search
                         searchState.value = SearchState.SEARCHING
                     },
                     onItemRemove = { search ->
-                        removeSearchFromCache(search)
-                        recentSearches.remove(search) // Update local state for immediate UI feedback
+                        searchViewModel.deleteRecentSearch(search) // Update local state for immediate UI feedback
                     }
                 )
             }
             SearchState.SEARCHING -> {
+
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color.White)
+                    LoadingScreen()
                 }
             }
             SearchState.SEARCHED -> {
@@ -162,9 +166,7 @@ fun SearchScreen(innerPadding: PaddingValues, onBackPressed: () -> Unit, onArtic
     }
 }
 
-/**
- * The custom search bar with a liquid glass aesthetic and multiple states.
- */
+
 @Composable
 fun GlassSearchBar(
     query: MutableState<String>,
@@ -362,9 +364,9 @@ fun CategoryGlassChip(category: String, modifier: Modifier = Modifier, onClick: 
  */
 @Composable
 fun RecentSearches(
-    recentSearches: List<String>,
+    recentSearches: List<SearchedItems>,
     onItemClick: (String) -> Unit,
-    onItemRemove: (String) -> Unit
+    onItemRemove: (SearchedItems) -> Unit
 ) {
     if (recentSearches.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
@@ -412,7 +414,7 @@ fun RecentSearches(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .clickable { onItemClick(searchText) }
+                        .clickable { onItemClick(searchText.search) }
                         .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -423,7 +425,7 @@ fun RecentSearches(
                     )
                     Spacer(Modifier.width(16.dp))
                     Text(
-                        text = searchText,
+                        text = searchText.search,
                         color = Color.White,
                         fontSize = 16.sp,
                         modifier = Modifier.weight(1f)

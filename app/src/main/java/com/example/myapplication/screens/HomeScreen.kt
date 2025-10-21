@@ -1,4 +1,6 @@
 package com.example.myapplication.screens
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -46,12 +48,20 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.myapplication.LoadingScreen
+import com.example.myapplication.data.ViewModels.HomeViewModel
 import com.example.myapplication.data.fetchNewsArticles
 import com.example.myapplication.response.NewsArticle
 import com.google.accompanist.pager.ExperimentalPagerApi
@@ -59,28 +69,64 @@ import com.google.accompanist.pager.HorizontalPager
 import com.google.accompanist.pager.calculateCurrentOffsetForPage
 import com.google.accompanist.pager.rememberPagerState
 import kotlin.math.absoluteValue
+import kotlin.math.min
+
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn
 @Composable
-fun HomeScreen(innerPadding: PaddingValues, onArticleClick: (Int)->Unit){
-        Column(modifier= Modifier.fillMaxSize().padding(innerPadding), horizontalAlignment = Alignment.CenterHorizontally){
-            LazyColumn(Modifier.fillMaxWidth(), state = rememberLazyListState()
-        ) {
-                val newsArticles= fetchNewsArticles()
-                item{
-                    Spacer(modifier = Modifier.height(60.dp))
-                    StackedGlassCarousel(newsArticles){
-                        onArticleClick(it)
-                    }
-                    Spacer(modifier = Modifier.height(25.dp))
-                }
-                items(newsArticles.size) { index ->
-                    val newsArticle = newsArticles[index]
-                    NewsBlock(newsArticle, {onArticleClick(it)})
+fun HomeScreen(innerPadding: PaddingValues, homeViewModel: HomeViewModel, onStart: MutableState<Boolean>, onArticleClick: (Int)->Unit){
+    val newsArticles by homeViewModel.articles.collectAsState()
+    val isLoading by homeViewModel.isLoading.collectAsState()
+    LaunchedEffect(Unit) {
+        if (onStart.value) {
+            onStart.value=false
+            homeViewModel.getTodayNews()
+        }
+    }
+
+        Column(modifier= Modifier.fillMaxSize().padding(innerPadding), horizontalAlignment = Alignment.CenterHorizontally) {
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize(), contentAlignment = Alignment.Center
+                )
+                {
+                    LoadingScreen()
                 }
             }
-
-
+            else if (newsArticles.isEmpty()){
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize(), contentAlignment = Alignment.Center
+                ){
+                    Text(text = "No news to show")
+                }
+            }
+            else {
+                LazyColumn(
+                    Modifier.fillMaxWidth(), state = rememberLazyListState()
+                ) {
+                    item {
+                        Spacer(modifier = Modifier.height(40.dp))
+                        Text("TOP PICKS: ", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(16.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
+                        StackedGlassCarousel(newsArticles.subList(0, min(5, newsArticles.size))) {
+                            onArticleClick(it)
+                        }
+                        Spacer(modifier = Modifier.height(25.dp))
+                    }
+                    item{
+                        Text("READ MORE: ", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White,  modifier = Modifier.padding(16.dp))
+                    }
+                    items(newsArticles.size) { index ->
+                        val newsArticle = newsArticles[index]
+                        NewsBlock(newsArticle, { onArticleClick(it) })
+                    }
+                }
+            }
         }
+
+
 }
 @Composable
 fun NewsBlock(newsArticle: NewsArticle, onArticleClick: (Int) -> Unit, saved: Boolean = false){

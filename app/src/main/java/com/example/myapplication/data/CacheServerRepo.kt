@@ -6,6 +6,10 @@ import androidx.room.Query
 import com.example.myapplication.data.room.BiasedArticleDao
 import com.example.myapplication.data.room.NewsArticleDao
 import com.example.myapplication.data.room.SavedArticleDao
+import com.example.myapplication.data.room.SavedArticles
+import com.example.myapplication.data.room.SearchedItems
+import com.example.myapplication.data.room.SearchedItemsDao
+
 import com.example.myapplication.data.server.NewsApiService
 import com.example.myapplication.response.BiasedArticles
 import com.example.myapplication.response.NewsArticle
@@ -18,7 +22,8 @@ class CacheServerRepo(
     private val api: NewsApiService,
     private val newsdao: NewsArticleDao,
     private val biaseddao: BiasedArticleDao,
-    private val saveddao: SavedArticleDao
+    private val saveddao: SavedArticleDao,
+    private val searcheddao: SearchedItemsDao
 ) {
     suspend fun fetchBiasedArticle( id: Int){
         val biased = api.getBiasedNews(id)
@@ -89,9 +94,22 @@ class CacheServerRepo(
         return saveddao.getAll()
     }
 
-    suspend fun deleteSaved(query: NewsArticle): Boolean {
+    suspend fun deleteSaved(newsArticle: NewsArticle): Boolean {
         try {
-            saveddao.delete(query)
+            val savedArticle = SavedArticles(
+                id = newsArticle.id,
+                headline = newsArticle.headline,
+                description = newsArticle.description,
+                article = newsArticle.article,
+                imageUrl = newsArticle.imageUrl,
+                date = newsArticle.date,
+                category = newsArticle.category,
+                centerBias = newsArticle.centerBias,
+                leftBias = newsArticle.leftBias,
+                rightBias = newsArticle.rightBias,
+                source = newsArticle.source
+            )
+            saveddao.delete(savedArticle)
             return true
         }
         catch (e: Exception){
@@ -99,9 +117,22 @@ class CacheServerRepo(
         }
     }
 
-    suspend fun addSaved(query: NewsArticle): Boolean{
+    suspend fun addSaved(newsArticle: NewsArticle): Boolean{
         try {
-            saveddao.insert(query)
+            val savedArticle = SavedArticles(
+                id = newsArticle.id,
+                headline = newsArticle.headline,
+                description = newsArticle.description,
+                article = newsArticle.article,
+                imageUrl = newsArticle.imageUrl,
+                date = newsArticle.date,
+                category = newsArticle.category,
+                centerBias = newsArticle.centerBias,
+                leftBias = newsArticle.leftBias,
+                rightBias = newsArticle.rightBias,
+                source = newsArticle.source
+            )
+            saveddao.insert(savedArticle)
             return true
         }
         catch (e: Exception){
@@ -111,6 +142,36 @@ class CacheServerRepo(
 
     suspend fun fetchArticle(id: Int): NewsArticle?{
         return newsdao.fetchArticle(id)
+    }
+    suspend fun getRecentSearches(): List<SearchedItems> {
+        return searcheddao.getAllSearchItemsList()
+    }
+    suspend fun addRecentSearch(searchTerm: String) {
+        // 1. Get all current searches to check for duplicates
+        val allSearches = searcheddao.getAllSearchItemsList()
+        val existingItem = allSearches.find { it.search.equals(searchTerm, ignoreCase = true) }
+
+        if (existingItem != null) {
+            searcheddao.deleteSearchItem(existingItem)
+        } else {
+            val currentCount = searcheddao.getCount()
+            if (currentCount >= 10) {
+    
+                searcheddao.deleteOldestItem()
+            }
+        }
+        val newSearchItem = SearchedItems(
+            id = System.currentTimeMillis(),
+            search = searchTerm
+        )
+        searcheddao.insertSearchItem(newSearchItem)
+    }
+    
+    suspend fun deleteRecentSearch(item: SearchedItems) {
+        searcheddao.deleteSearchItem(item)
+    }
+    suspend fun clearAllRecentSearches() {
+        searcheddao.clearAll()
     }
 
 }

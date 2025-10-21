@@ -30,12 +30,16 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -55,7 +59,10 @@ import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -74,11 +81,19 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+import androidx.media3.ui.PlayerView
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -88,7 +103,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import com.example.myapplication.data.ViewModels.ArticlesViewModel
+import com.example.myapplication.data.ViewModels.HomeViewModel
+import com.example.myapplication.data.ViewModels.SavedViewModel
+import com.example.myapplication.data.ViewModels.SearchViewModel
 import com.example.myapplication.data.allNewsArticles
+import com.example.myapplication.data.room.UserSettings
 import com.example.myapplication.response.NewsArticle
 import com.example.myapplication.screens.ArticleScreen
 import com.example.myapplication.screens.HomeScreen
@@ -96,6 +116,8 @@ import com.example.myapplication.screens.OnboardingScreen
 import com.example.myapplication.screens.SavedScreen
 import com.example.myapplication.screens.SearchScreen
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+
     object Routes {
         const val ONBOARDING = "onboarding"
         const val HOME = "home"
@@ -106,7 +128,18 @@ import kotlinx.coroutines.delay
     }
     @RequiresApi(Build.VERSION_CODES.O)
     @Composable
-    fun App(modifier: Modifier = Modifier) {
+    fun App(
+        modifier: Modifier = Modifier,
+        homeViewModel: HomeViewModel,
+        searchViewModel: SearchViewModel,
+        savedViewModel: SavedViewModel,
+        articlesViewModel: ArticlesViewModel
+    ) {
+        val onStart = remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            onStart.value=true
+        }
+
 
         val navController = rememberNavController()
         val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -139,6 +172,10 @@ import kotlinx.coroutines.delay
                         GradientBottomNavBar(navController = navController)
                     }
                 }
+                ,
+                topBar = {
+                    if (showBottomBar) AppTopBar(Modifier.padding(WindowInsets.statusBars.asPaddingValues()))
+                }
             ) { innerPadding ->
                 // NavHost is where your screens are swapped
                 NavHost(
@@ -148,7 +185,7 @@ import kotlinx.coroutines.delay
                 ) {
                     composable(Routes.ONBOARDING) {
                         OnboardingScreen(onFinish = {
-                            // Navigate to home and clear the onboarding screen from the back stack
+
                             navController.navigate(Routes.HOME) {
                                 popUpTo(Routes.ONBOARDING) {
                                     inclusive = true
@@ -158,21 +195,21 @@ import kotlinx.coroutines.delay
                     }
 
                     composable(Routes.HOME) {
-                        HomeScreen(innerPadding){ articleId ->
+                        HomeScreen(innerPadding, homeViewModel, onStart){ articleId ->
                             navController.navigate("article/$articleId")
                         }
                     }
 
                     composable(Routes.SEARCH) {
                         // SearchScreen()
-                        SearchScreen(innerPadding, onBackPressed = {navController.popBackStack()}){ articleId ->
+                        SearchScreen(innerPadding, searchViewModel,onBackPressed = {navController.popBackStack()}){ articleId ->
                             navController.navigate("article/$articleId")
                         }  // Placeholder
                     }
 
                     composable(Routes.SAVED) {
                         // SavedScreen()
-                        SavedScreen (innerPadding){ articleId ->
+                        SavedScreen (innerPadding, savedViewModel){ articleId ->
                             navController.navigate("article/$articleId")
                         } // Placeholder
                     }
@@ -214,7 +251,7 @@ import kotlinx.coroutines.delay
 
                     ) { backStackEntry ->
                         val articleId = backStackEntry.arguments?.getInt("articleId")
-                        ArticleScreen(innerPadding, allNewsArticles[allNewsArticles.indexOfFirst ({ it.id == articleId!!})]) { navController.popBackStack()} // Placeholder
+                        ArticleScreen(innerPadding, articleId!!, articlesViewModel) { navController.popBackStack()} // Placeholder
                     }
                 }
             }
@@ -358,7 +395,7 @@ fun SplashScreen(modifier :Modifier, doneLoading: () -> Unit    ){
         }
     }
     LaunchedEffect(Unit) {
-        delay(2500L)
+        delay(6000L)
         doneLoading()
     }
     BoxWithConstraints(
@@ -373,52 +410,47 @@ fun SplashScreen(modifier :Modifier, doneLoading: () -> Unit    ){
 //                contentDescription = "logo",
 //                modifier = Modifier.size(width * 0.5f)
 //            )
-            Row {
-                Text(text = name, fontSize = 30.sp, textAlign = TextAlign.Center)
-                Box(
-                    modifier = Modifier.width(10.dp), // fixed width for cursor
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    if (showCursor) Text(text = "│",fontSize = 30.sp) else Text(text = "│",fontSize = 30.sp, color=  colorScheme.background)
-                }
-            }
+            Mp4LoadingAnimation(Modifier.fillMaxWidth(0.75f).aspectRatio(1f).clip(CircleShape))
 
-            Spacer(modifier = Modifier.height(height/900f *10))
-            Text("Made by Insert_Name()", textAlign = TextAlign.End, modifier = Modifier.align(Alignment.End))
-            Spacer(modifier = Modifier.height(height/900f *30))
-            LoadingScreen()
+            Spacer(modifier = Modifier.height(height/900f *50))
+            Text("IN NEWS", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Color.White)
         }
     }
 
 }
-@Composable
-fun LoadingScreen() {
-    Row(
-        modifier = Modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
-    ) {
-        PulsingShape(
-            delayMillis = 0,
-            shapeType = ShapeType.Circle,
-            color = Color(0xFF4FC3F7)
-        )
-        Spacer(modifier = Modifier.width(20.dp))
-        PulsingShape(
-            delayMillis = 300,
-            shapeType = ShapeType.Square,
-            color = Color(0xFF81C784)
-        )
-        Spacer(modifier = Modifier.width(20.dp))
 
-        PulsingShape(
-            delayMillis = 600,
-            shapeType = ShapeType.Triangle,
-            color = Color(0xFFFFB74D)
-        )
+
+    @Composable
+    fun LoadingScreen() {
+        Row(
+            modifier = Modifier,
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            // A vibrant blue from your analytics chart
+            PulsingShape(
+                delayMillis = 0,
+                shapeType = ShapeType.Circle,
+                color = Color(0xFF3B82F6)
+            )
+            Spacer(modifier = Modifier.width(20.dp))
+
+            // The deep purple that matches your theme's accent
+            PulsingShape(
+                delayMillis = 300,
+                shapeType = ShapeType.Square,
+                color = Color(0xFF8B5CF6)
+            )
+            Spacer(modifier = Modifier.width(20.dp))
+
+            // The bold red from your analytics chart
+            PulsingShape(
+                delayMillis = 600,
+                shapeType = ShapeType.Triangle,
+                color = Color(0xFFEF4444)
+            )
+        }
     }
-}
-
 enum class ShapeType { Circle, Square, Triangle }
 
 @Composable
@@ -499,3 +531,72 @@ fun PulsingShape(
 
     }
 }
+
+    @Composable
+    fun Mp4LoadingAnimation(modifier: Modifier = Modifier) {
+        val context = LocalContext.current
+        val exoPlayer = remember {
+            ExoPlayer.Builder(context).build().apply {
+                val mediaItem = MediaItem.fromUri(
+                    "android.resource://${context.packageName}/${R.raw.introanimation}"
+                )
+                setMediaItem(mediaItem)
+                repeatMode = Player.REPEAT_MODE_OFF
+                setPlaybackParameters(
+                    PlaybackParameters(2.0f)
+                )
+                playWhenReady = true
+                prepare()
+            }
+        }
+
+        // 5. Manage the player's lifecycle
+        DisposableEffect(Unit) {
+            onDispose {
+                exoPlayer.release()
+            }
+        }
+
+        // 6. Add the PlayerView to Compose
+        AndroidView(
+            modifier = modifier,
+            factory = {
+                PlayerView(it).apply {
+                    player = exoPlayer
+                    useController = false
+                    resizeMode= RESIZE_MODE_ZOOM
+
+                }
+            }
+        )
+    }
+
+    @Composable
+    fun AppTopBar(modifier: Modifier = Modifier) {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(56.dp) // Standard height for top bars
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center // Align content to the start
+        ) {
+            // Logo
+            Image(
+                painter = painterResource(id = R.drawable.logo), // Your logo file
+                contentDescription = "App Logo",
+                modifier = Modifier
+                    .size(32.dp) // Adjust size as needed
+            )
+
+            Spacer(modifier = Modifier.width(8.dp)) // Space between logo and text
+
+            // App Name
+            Text(
+                text = "IN NEWS",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }

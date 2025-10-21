@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Divider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -37,6 +38,7 @@ import androidx.compose.material3.SegmentedButtonDefaults.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,6 +62,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.example.myapplication.LoadingScreen
+import com.example.myapplication.data.ViewModels.ArticlesViewModel
 import com.example.myapplication.data.fetchBiasedNews
 import com.example.myapplication.data.isArticleSaved
 import com.example.myapplication.data.removeArticle
@@ -71,26 +75,50 @@ import com.example.myapplication.response.BiasedArticles
 @Composable
 fun ArticleScreen(
     innerPadding: PaddingValues,
-    article: NewsArticle,
+    articleId: Int,
+    articleViewModel: ArticlesViewModel,
     onBackPressed: () -> Unit
 ) {
-    // State to keep track of the selected tab: "Article" or "Analytics"
+    LaunchedEffect(Unit) {
+        articleViewModel.getArticle(articleId)
+    }
+    val article by articleViewModel.article.collectAsState()
+    val isLoading by articleViewModel.isLoadingArticle.collectAsState()
+
+    val context = LocalContext.current
     var selectedTab by remember { mutableStateOf("Article") }
+    LaunchedEffect(isLoading) {
+        if (!isLoading && article!=null) articleViewModel.getBiased(articleId)
+    }
+    if (isLoading){
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            LoadingScreen()
+        }
+    }
+    else {
+        if (article==null){
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center){
+                Text("Article Not Found", color=Color.White)
+            }
 
-    Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-        Spacer(Modifier.height(32.dp))
+        }
+        else {
+            val biasedArticles = articleViewModel.biasedArticles.collectAsState()
+            val isBiasedLoading = articleViewModel.isLoadingBiased.collectAsState()
 
-        // Custom glass top bar with tabs and a back button
-        ArticleTopBar(
-            selectedTab = selectedTab,
-            onTabSelected = { selectedTab = it },
-            onBackPressed = onBackPressed
-        )
-
-        // Content area that changes based on the selected tab
-        when (selectedTab) {
-            "Article" -> ArticleContent(article = article)
-            "Analytics" -> AnalyticsContent(article = article)
+            Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+                Spacer(Modifier.height(32.dp))
+                ArticleTopBar(
+                    selectedTab = selectedTab,
+                    onTabSelected = { selectedTab = it },
+                    onBackPressed = onBackPressed
+                )
+                when (selectedTab) {
+                    "Article" -> ArticleContent(article = article!!, articleViewModel)
+                    "Analytics" -> if (isBiasedLoading.value){ Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        LoadingScreen()}} else {AnalyticsContent(article!!, biasedArticles.value)}
+                }
+            }
         }
     }
 }
@@ -110,7 +138,6 @@ fun ArticleTopBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Back Button
         IconButton(onClick = onBackPressed) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -118,8 +145,6 @@ fun ArticleTopBar(
                 tint = Color.White
             )
         }
-
-        // Glass container for the tabs
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(50))
@@ -156,7 +181,6 @@ fun ArticleTopBar(
     }
 }
 
-/** A helper composable for the individual tabs */
 @Composable
 fun TabButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     Box(
@@ -173,11 +197,10 @@ fun TabButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     }
 }
 @Composable
-fun ArticleContent(article: NewsArticle) {
-    val saved = remember { mutableStateOf(false) }
-    LaunchedEffect(Unit, savedArticles.size) {
-        saved.value = isArticleSaved(article)
-    }
+fun ArticleContent(article: NewsArticle, articleViewModel: ArticlesViewModel) {
+    val saved = articleViewModel.isSaved.collectAsState()
+    val updating = articleViewModel.isUpdatingSaved.collectAsState()
+
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -197,8 +220,9 @@ fun ArticleContent(article: NewsArticle) {
                         .clip(RoundedCornerShape(16.dp))
                 )
                 Row(Modifier.fillMaxWidth().padding(20.dp), horizontalArrangement = Arrangement.End) {
-                        IconButton({if (saved.value) removeArticle(article) else saveArticle(article) }, Modifier.padding(5.dp).clip(CircleShape).background(Color.Black.copy(alpha=0.65f))){
-                            if (saved.value) Icon(Icons.Default.Bookmark, "", Modifier.size(30.dp), tint = Color.White)
+                        IconButton({if (!updating.value) {if (saved.value) articleViewModel.removeSaved(article) else articleViewModel.addSaved(article)} }, Modifier.padding(5.dp).clip(CircleShape).background(Color.Black.copy(alpha=0.65f))){
+                            if (updating.value) LoadingScreen()
+                            else if (saved.value) Icon(Icons.Default.Bookmark, "", Modifier.size(30.dp), tint = Color.White)
                             else Icon(Icons.Outlined.BookmarkBorder, "", Modifier.size(30.dp))
                         }
                         val context= LocalContext.current
@@ -267,110 +291,109 @@ fun ArticleContent(article: NewsArticle) {
     }
 }
 
-
-
-
-/**
- * A data class to represent a single slice of the pie chart.
- */
 data class PieChartSlice(val label: String, val value: Float, val color: Color)
-
-
 @Composable
-fun AnalyticsContent(article: NewsArticle) {
-    val biasedArticles= fetchBiasedNews(article.id)
-    var left = article.leftBias
-    var right = article.rightBias
-    var center = article.centerBias
-    for (bias in biasedArticles){
-        left += bias.leftBias
-        right += bias.rightBias
-        center += bias.centerBias
+fun AnalyticsContent(article: NewsArticle, biasedArticles: List<BiasedArticles>) {
+    if (biasedArticles.isEmpty()){
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("No Biased Articles", color= Color.White)
+        }
     }
-    left /= biasedArticles.size+1
-    right /= biasedArticles.size+1
-    center /= biasedArticles.size+1
-    val leftArticle= biasedArticles.maxBy { it.leftBias }
-    val rightArticle= biasedArticles.maxBy { it.rightBias }
-    val centerArticle= biasedArticles.maxBy { it.centerBias }
+    else {
+        var left = article.leftBias
+        var right = article.rightBias
+        var center = article.centerBias
+        for (bias in biasedArticles) {
+            left += bias.leftBias
+            right += bias.rightBias
+            center += bias.centerBias
+        }
+        left /= biasedArticles.size + 1
+        right /= biasedArticles.size + 1
+        center /= biasedArticles.size + 1
+        val leftArticle = biasedArticles.maxBy { it.leftBias }
+        val rightArticle = biasedArticles.maxBy { it.rightBias }
+        val centerArticle = biasedArticles.maxBy { it.centerBias }
 
-    val pieChartData = listOf(
-        PieChartSlice("Left", left, Color(0xFF3B82F6)),   // Blue
-        PieChartSlice("Center", center, Color(0xFF8B5CF6)), // Purple
-        PieChartSlice("Right", right, Color(0xFFEF4444))    // Red
-    )
+        val pieChartData = listOf(
+            PieChartSlice("Left", left, Color(0xFF3B82F6)),   // Blue
+            PieChartSlice("Center", center, Color(0xFF8B5CF6)), // Purple
+            PieChartSlice("Right", right, Color(0xFFEF4444))    // Red
+        )
 
-    LazyColumn (state = rememberLazyListState(),
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp).clip(RoundedCornerShape(24.dp)).background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.25f),
-                        Color.White.copy(alpha = 0.1f)
-                    ),
-                    start = Offset(0f, 0f),
-                    end = Offset.Infinite
+        LazyColumn(
+            state = rememberLazyListState(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp).clip(RoundedCornerShape(24.dp)).background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.25f),
+                            Color.White.copy(alpha = 0.1f)
+                        ),
+                        start = Offset(0f, 0f),
+                        end = Offset.Infinite
+                    )
                 )
-            )
-            // 2. A gradient border to simulate a glossy edge
-            .border(
-                width = 1.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.4f),
-                        Color.White.copy(alpha = 0.15f)
+                // 2. A gradient border to simulate a glossy edge
+                .border(
+                    width = 1.dp,
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.4f),
+                            Color.White.copy(alpha = 0.15f)
+                        ),
+                        start = Offset(0f, 0f),
+                        end = Offset.Infinite
                     ),
-                    start = Offset(0f, 0f),
-                    end = Offset.Infinite
-                ),
-                shape = RoundedCornerShape(24.dp)
-            )
-            // 3. A more subtle, diffused shadow
-            .shadow(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(24.dp),
-                spotColor = Color(0x33FFFFFF), // A white glow from the top
-                ambientColor = Color(0x33000000) // A soft black shadow underneath
-            )
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(32.dp)
-    ) {
-        item() {
-            Text(
-                "Bias Analysis",
-                style = MaterialTheme.typography.headlineSmall,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
-        }
-        item() {
-            AnimatedPieChart(
-                data = pieChartData,
-                modifier = Modifier.size(200.dp) // Control the size of the chart here
-            )
-        }
+                    shape = RoundedCornerShape(24.dp)
+                )
+                // 3. A more subtle, diffused shadow
+                .shadow(
+                    elevation = 8.dp,
+                    shape = RoundedCornerShape(24.dp),
+                    spotColor = Color(0x33FFFFFF), // A white glow from the top
+                    ambientColor = Color(0x33000000) // A soft black shadow underneath
+                )
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(32.dp)
+        ) {
+            item() {
+                Text(
+                    "Bias Analysis",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            item() {
+                AnimatedPieChart(
+                    data = pieChartData,
+                    modifier = Modifier.size(200.dp) // Control the size of the chart here
+                )
+            }
 
-        item() {
-            ChartLegend(data = pieChartData)
-        }
-        item {
-            // Add a divider for better visual separation
-            Divider(
-                modifier = Modifier.padding(vertical = 16.dp),
-                color = Color.White.copy(alpha = 0.2f)
-            )
-        }
-        item {
-            // 3. Add the new Perspective360View
-            Perspective360View(
-                leftArticle = leftArticle,
-                centerArticle = centerArticle,
-                rightArticle = rightArticle
-            )
-        }
+            item() {
+                ChartLegend(data = pieChartData)
+            }
+            item {
+                // Add a divider for better visual separation
+                Divider(
+                    modifier = Modifier.padding(vertical = 16.dp),
+                    color = Color.White.copy(alpha = 0.2f)
+                )
+            }
+            item {
+                // 3. Add the new Perspective360View
+                Perspective360View(
+                    leftArticle = leftArticle,
+                    centerArticle = centerArticle,
+                    rightArticle = rightArticle
+                )
+            }
 
+        }
     }
 }
 
