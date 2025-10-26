@@ -313,7 +313,10 @@ fun AnalyticsContent(article: NewsArticle, biasedArticles: List<BiasedArticles>)
         center /= biasedArticles.size + 1
         val leftArticle = biasedArticles.maxBy { it.leftBias }
         val rightArticle = biasedArticles.maxBy { it.rightBias }
-        val centerArticle = biasedArticles.maxBy { it.centerBias }
+        for (i in biasedArticles){
+            println("${i.source}, ${i.leftBias}, ${i.rightBias}")
+        }
+        val centerArticle = BiasedArticles(article.id, article.headline, article.article, article.description, article.imageUrl, article.source, article.date, article.centerBias, article.leftBias, article.leftBias, article.source, article.id)
 
         val pieChartData = listOf(
             PieChartSlice("Left", left, Color(0xFF3B82F6)),   // Blue
