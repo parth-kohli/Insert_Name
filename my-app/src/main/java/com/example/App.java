@@ -44,7 +44,7 @@ public class App {
             System.out.println("No training data found. Please check the '" + trainingDataPath + "' directory.");
             return;
         }
-        fetchMultipleArticles.main(new String[]{});
+
         vectorizer.fit(trainingCorpus);
         List<double[]> trainingVectors = new ArrayList<>();
         for (String doc : trainingCorpus) {

@@ -10,6 +10,7 @@ public class Article {
     final String description;
     final String imageUrl;
     final String content;
+    String category;
     final Float leftBias;
     final Float centerBias;
     final Float rightBias;
@@ -24,6 +25,7 @@ public class Article {
         this.description = description;
         this.imageUrl = imageUrl;
         this.content = content;
+        this.category=category;
         this.leftBias = leftBias;
         this.centerBias = centerBias;
         this.rightBias = rightBias;

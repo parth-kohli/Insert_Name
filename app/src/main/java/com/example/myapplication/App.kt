@@ -135,7 +135,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
         savedViewModel: SavedViewModel,
         articlesViewModel: ArticlesViewModel
     ) {
-        val onStart = remember { mutableStateOf(false) }
+        val onStart = remember { mutableStateOf(true) }
         LaunchedEffect(Unit) {
             onStart.value=true
         }

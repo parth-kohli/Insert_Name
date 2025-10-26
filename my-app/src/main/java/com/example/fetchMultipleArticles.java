@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class fetchMultipleArticles {
-    private static final String API_KEY = "e8efcdd3703b4e58b9b3f207e4591d95"; // Use your own API key
+    private static final String API_KEY = "273f886cd7b0434eaf76f112fd6b05fe"; // Use your own API key
     private static final String CACHE_FILE = "cached_articles"+LocalDate.now().toString()+".json";
     private static final HttpClient client = HttpClient.newHttpClient();
     private static final Set<String> STOP_WORDS = Set.of("a", "an", "the", "in", "on", "at", "for", "with", "is", "are", "was", "were", "to", "of", "and", "says", "posts", "after", "by");
@@ -36,7 +36,16 @@ public class fetchMultipleArticles {
             Map.entry("newsweek.com", "newsweek"), Map.entry("cbsnews.com", "cbs-news"),
             Map.entry("theblaze.com", "the-blaze")
     );
-
+    private static final Map<String, List<String>> CATEGORY_KEYWORDS = Map.ofEntries(
+            Map.entry("POLITICS", List.of("/politics", "politics.", "election", "government")),
+            Map.entry("BUSINESS", List.of("/business", "business.", "/finance", "/economy", "markets")),
+            Map.entry("TECHNOLOGY", List.of("/tech", "tech.", "/technology", "gadgets", "/science")),
+            Map.entry("SPORTS", List.of("/sports", "sports.", "nfl", "nba", "mlb", "soccer", "olympics")),
+            Map.entry("ENTERTAINMENT", List.of("/entertainment", "entertainment.", "/movies", "/music", "celebrity")),
+            Map.entry("HEALTH", List.of("/health", "health.", "medical", "wellness")),
+            Map.entry("WORLD", List.of("/world", "world.", "/international", "global")),
+            Map.entry("OPINION", List.of("/opinion", "opinion.", "/editorial", "/commentary"))
+    );
     private static TfidfVectorizer vectorizer;
     private static MultinomialNaiveBayes model;
     public static List<List<Article>> fetchAndClusterArticles(ModelTrainer.TrainedModels trainedModels) {
@@ -60,6 +69,25 @@ public class fetchMultipleArticles {
         }
         System.out.println("\nClustering articles to find specific events...");
         List<List<Article>> clusters = clusterArticles(allArticles);
+        System.out.println("Processing " + clusters.size() + " clusters to concatenate categories...");
+        for (List<Article> cluster : clusters) {
+            if (cluster == null || cluster.isEmpty()) {
+                continue;
+            }
+            Set<String> categoriesInCluster = new LinkedHashSet<>();
+            for (Article article : cluster) {
+                if (article.category != null && !article.category.isBlank()) {
+                    String[] individualCategories = article.category.split(", ");
+                    for (String cat : individualCategories) {
+                        if (cat != null && !cat.isBlank()) {
+                            categoriesInCluster.add(cat.trim());
+                        }
+                    }
+                }
+            }
+            String concatenatedCategories = String.join(", ", categoriesInCluster);
+            cluster.get(0).category = concatenatedCategories;
+        }
         System.out.println("Sorting " + clusters.size() + " clusters using custom Merge Sort...");
         List<List<Article>> sortedClusters = mergeSort(clusters);
         return sortedClusters.stream()
@@ -108,7 +136,7 @@ public class fetchMultipleArticles {
         for (String domain : domains) {
             try {
                 String queryParam = DOMAIN_TO_SOURCE_ID.containsKey(domain) ? "&sources=" + DOMAIN_TO_SOURCE_ID.get(domain) : "&domains=" + domain;
-                String url = "https://newsapi.org/v2/everything?q=" + topicQuery
+                String url = "https://newsapi.org/v2/everything?q=" + ""
                         + "&from=" + yesterdayStr + "&to=" + yesterdayStr
                         + queryParam + "&pageSize=" + countPerSource + "&language=en&apiKey=" + API_KEY;
 
@@ -133,6 +161,7 @@ public class fetchMultipleArticles {
                     String articleUrl = articleJson.getString("url");
                     System.out.println("   -> Scraping: " + title);
                     String fullArticleText = scrapeArticle(articleUrl);
+                    String category = categorizeNewsUrl(url);
                     
                     String textToAnalyze;
                     String contentForDB;
@@ -150,7 +179,7 @@ public class fetchMultipleArticles {
                     articleSet.add(new Article(
                             title, articleUrl, sourceName, publishedAt,
                             description, imageUrl, 
-                            contentForDB,
+                            contentForDB, category,
                             biasScores.getOrDefault("Left", 0.0).floatValue(),
                             biasScores.getOrDefault("Center", 0.0).floatValue(),
                             biasScores.getOrDefault("Right", 0.0).floatValue()
@@ -215,7 +244,7 @@ public class fetchMultipleArticles {
         Set<String> multiWordEntities1 = getEntities(title1, "\\b[A-Z][a-z]+(?:\\s[A-Z][a-z]+){1,2}\\b");
         Set<String> multiWordEntities2 = getEntities(title2, "\\b[A-Z][a-z]+(?:\\s[A-Z][a-z]+){1,2}\\b");
         Set<String> singleWordEntities1 = getEntities(title1, "\\b[A-Z][a-z]{3,}\\b");
-        Set<String> singleWordEntities2 = getEntities(title2, "\\b[A-Z][a-Z]{3,}\\b");
+        Set<String> singleWordEntities2 = getEntities(title2, "\\b[A-Z][a-z]{3,}\\b");
         String normTitle1 = normalizeTitle(title1);
         String normTitle2 = normalizeTitle(title2);
         Set<String> keywords1 = getKeywords(normTitle1);
@@ -268,51 +297,92 @@ public class fetchMultipleArticles {
         return (int) cluster.stream().map(a -> a.sourceName).distinct().count();
     }
 
-private static List<List<Article>> mergeSort(List<List<Article>> list) {
-    if (list.size() <= 1) return list;
-    int middle = list.size() / 2;
-    List<List<Article>> leftHalf = new ArrayList<>(list.subList(0, middle));
-    List<List<Article>> rightHalf = new ArrayList<>(list.subList(middle, list.size()));
-    List<List<Article>> sortedLeft = mergeSort(leftHalf);
-    List<List<Article>> sortedRight = mergeSort(rightHalf);
-    return merge(sortedLeft, sortedRight);
-}
-
-private static List<List<Article>> merge(List<List<Article>> left, List<List<Article>> right) {
-    List<List<Article>> result = new ArrayList<>();
-    int leftIndex = 0;
-    int rightIndex = 0;
-    while (leftIndex < left.size() && rightIndex < right.size()) {
-        List<Article> leftCluster = left.get(leftIndex);
-        List<Article> rightCluster = right.get(rightIndex);
-        int leftDiversity = getSourceDiversity(leftCluster);
-        int rightDiversity = getSourceDiversity(rightCluster);
-        if (leftDiversity > rightDiversity) {
-            result.add(leftCluster);
-            leftIndex++;
-        } else if (leftDiversity < rightDiversity) {
-            result.add(rightCluster);
-            rightIndex++;
-        } else {
-            if (leftCluster.size() >= rightCluster.size()) {
-                result.add(leftCluster);
-                leftIndex++;
-            } else {
-                result.add(rightCluster);
-                rightIndex++;
+    private static List<List<Article>> mergeSort(List<List<Article>> list) {
+        if (list.size() <= 1) return list;
+        int middle = list.size() / 2;
+        List<List<Article>> leftHalf = new ArrayList<>(list.subList(0, middle));
+        List<List<Article>> rightHalf = new ArrayList<>(list.subList(middle, list.size()));
+        List<List<Article>> sortedLeft = mergeSort(leftHalf);
+        List<List<Article>> sortedRight = mergeSort(rightHalf);
+        return merge(sortedLeft, sortedRight);
+    }
+    public static String categorizeNewsUrl(String url) {
+        if (url == null || url.isEmpty()) {
+            return "UNKNOWN";
+        }
+        String normalizedUrl = url.toLowerCase();
+        for (Map.Entry<String, List<String>> entry : CATEGORY_KEYWORDS.entrySet()) {
+            String category = entry.getKey();
+            List<String> keywords = entry.getValue();
+            for (String keyword : keywords) {
+                if (stringContains(normalizedUrl, keyword)) {
+                    return category;
+                }
             }
         }
+        return "";
     }
-    while (leftIndex < left.size()) {
-        result.add(left.get(leftIndex));
-        leftIndex++;
+    private static boolean stringContains(String text, String keyword) {
+        if (keyword == null || text == null) {
+            return false;
+        }
+        int textLen = text.length();
+        int keywordLen = keyword.length();
+        if (keywordLen == 0) {
+            return true;
+        }
+        if (textLen < keywordLen) {
+            return false;
+        }
+        for (int i = 0; i <= textLen - keywordLen; i++) {
+            boolean matchFound = true;
+            for (int j = 0; j < keywordLen; j++) {
+                if (text.charAt(i + j) != keyword.charAt(j)) {
+                    matchFound = false;
+                    break;
+                }
+            }
+            if (matchFound) {
+                return true;
+            }
+        }
+        return false;
     }
-    while (rightIndex < right.size()) {
-        result.add(right.get(rightIndex));
-        rightIndex++;
+    private static List<List<Article>> merge(List<List<Article>> left, List<List<Article>> right) {
+        List<List<Article>> result = new ArrayList<>();
+        int leftIndex = 0;
+        int rightIndex = 0;
+        while (leftIndex < left.size() && rightIndex < right.size()) {
+            List<Article> leftCluster = left.get(leftIndex);
+            List<Article> rightCluster = right.get(rightIndex);
+            int leftDiversity = getSourceDiversity(leftCluster);
+            int rightDiversity = getSourceDiversity(rightCluster);
+            if (leftDiversity > rightDiversity) {
+                result.add(leftCluster);
+                leftIndex++;
+            } else if (leftDiversity < rightDiversity) {
+                result.add(rightCluster);
+                rightIndex++;
+            } else {
+                if (leftCluster.size() >= rightCluster.size()) {
+                    result.add(leftCluster);
+                    leftIndex++;
+                } else {
+                    result.add(rightCluster);
+                    rightIndex++;
+                }
+            }
+        }
+        while (leftIndex < left.size()) {
+            result.add(left.get(leftIndex));
+            leftIndex++;
+        }
+        while (rightIndex < right.size()) {
+            result.add(right.get(rightIndex));
+            rightIndex++;
+        }
+        return result;
     }
-    return result;
-}
 }
 
 

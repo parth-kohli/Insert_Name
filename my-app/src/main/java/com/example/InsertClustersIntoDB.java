@@ -18,10 +18,10 @@ public class InsertClustersIntoDB {
 
     private static final String DB_URL = "jdbc:mysql://localhost:3306/News?useSSL=false";
     private static final String DB_USER = "root";
-    private static final String DB_PASS = "password";
+    private static final String DB_PASS = "parthsarth9541";
 
     private static final String SQL_INSERT_NEWS_ARTICLE =
-            "INSERT INTO NewsArticles (headline, description, article, imageUrl, date, centerBias, leftBias, rightBias, source) " +
+            "INSERT INTO NewsArticles (headline, description, article, imageUrl, date, category, centerBias, leftBias, rightBias, source) " +
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     private static final String SQL_INSERT_BIASED_ARTICLE =
@@ -56,6 +56,7 @@ public class InsertClustersIntoDB {
                 if (cluster.isEmpty()) continue;
 
                 Article mainArticle = cluster.get(0);
+
                 System.out.printf("\nInserting Event #%d: '%s'\n", eventCounter++, mainArticle.title);
                 System.out.printf("   -> Scores: [L:%.2f, C:%.2f, R:%.2f]\n",
                     mainArticle.leftBias, mainArticle.centerBias, mainArticle.rightBias);
@@ -106,10 +107,12 @@ public class InsertClustersIntoDB {
         } else {
             ps.setString(3, "No content snippet available.");
         }
+
         setNullableString(ps, 4, article.imageUrl);
         ZonedDateTime zdt = ZonedDateTime.parse(article.publishedAt, DateTimeFormatter.ISO_DATE_TIME);
         LocalDateTime ldt = zdt.withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
         ps.setTimestamp(5, Timestamp.valueOf(ldt));
+        setNullableString(ps, 6, "General");
         setNullableFloat(ps, 7, article.centerBias);
         setNullableFloat(ps, 8, article.leftBias);
         setNullableFloat(ps, 9, article.rightBias);
