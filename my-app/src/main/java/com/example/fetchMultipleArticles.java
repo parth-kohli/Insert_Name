@@ -385,5 +385,9 @@ public class fetchMultipleArticles {
     }
 }
 
+/*Above two functions is for the implementation of merge sort, which is modified slightly so as to sort the clusters first based on
+ the no. of sources and if there is a tie, it is broken using the cluster with most size*/
+ */
+
 
 

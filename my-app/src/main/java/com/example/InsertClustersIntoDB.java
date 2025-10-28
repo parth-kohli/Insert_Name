@@ -31,7 +31,7 @@ public class InsertClustersIntoDB {
     public static void main(String[] args) {
         try {
             ModelTrainer.TrainedModels trainedModels = ModelTrainer.trainModels();
-            List<List<Article>> clusters = fetchMultipleArticles.fetchAndClusterArticles(trainedModels);
+            List<List<Article>> clusters = fetchMultipleArticles.fetchAndClusterArticles(trainedModels);//Returns clusters of articles
             try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS)) {
                 conn.setAutoCommit(false);
                 insertClusters(conn, clusters);
@@ -60,20 +60,21 @@ public class InsertClustersIntoDB {
                 System.out.printf("\nInserting Event #%d: '%s'\n", eventCounter++, mainArticle.title);
                 System.out.printf("   -> Scores: [L:%.2f, C:%.2f, R:%.2f]\n",
                     mainArticle.leftBias, mainArticle.centerBias, mainArticle.rightBias);
-                setStatementParams(psNews, mainArticle);
+                setStatementParams(psNews, mainArticle); //insert the values required for the NewsArticles table
                 psNews.executeUpdate();
                 int mainArticleId = -1;
                 try (ResultSet generatedKeys = psNews.getGeneratedKeys()) {
                     if (generatedKeys.next()) {
-                        mainArticleId = generatedKeys.getInt(1);
+                        mainArticleId = generatedKeys.getInt(1); //gets the id from NewsArticles table
                     } else {
                         throw new SQLException("Creating news article failed, no ID obtained.");
                     }
                 }
+                //Placing the rest of the articles in the biasedArticle DB
                 for (int i = 1; i < cluster.size(); i++) {
                     Article biasedArticle = cluster.get(i);
                     setStatementParams(psBiased, biasedArticle);
-                    psBiased.setInt(11, mainArticleId);
+                    psBiased.setInt(11, mainArticleId); 
                     psBiased.executeUpdate();
                 }
                 System.out.println("   -> Saved " + (cluster.size() - 1) + " related (biased) articles.");
@@ -97,7 +98,7 @@ public class InsertClustersIntoDB {
             ps.setNull(index, Types.FLOAT);
         }
     }
-
+    //For placing the required values in the insert statement
     private static void setStatementParams(PreparedStatement ps, Article article) throws SQLException {
         ps.setString(1, article.title);
         setNullableString(ps, 2, article.description);
