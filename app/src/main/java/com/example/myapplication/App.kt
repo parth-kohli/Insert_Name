@@ -123,7 +123,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
         const val HOME = "home"
         const val SEARCH = "search"
         const val SAVED = "saved"
-        // This route includes a placeholder for the article ID
         const val ARTICLE = "article/{articleId}"
     }
     @RequiresApi(Build.VERSION_CODES.O)
@@ -141,11 +140,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
         }
 
 
+        val appNavigationState = rememberAppNavigationState()
+        val currentScreen = appNavigationState.currentScreen
         val navController = rememberNavController()
-        val navBackStackEntry by navController.currentBackStackEntryAsState()
-        val currentRoute = navBackStackEntry?.destination?.route
-
-        val showBottomBar = currentRoute in listOf(Routes.HOME, Routes.SEARCH, Routes.SAVED)
+        BackHandler(enabled = appNavigationState.canGoBack) {
+            appNavigationState.navigateBack()
+        }
+        val showBottomBar = currentScreen?.route in listOf(Routes.HOME, Routes.SEARCH, Routes.SAVED)
 
         Column(
             Modifier
