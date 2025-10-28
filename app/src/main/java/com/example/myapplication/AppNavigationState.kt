@@ -4,7 +4,7 @@ import androidx.compose.runtime.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import androidx.compose.runtime.snapshots.SnapshotStateList // Keep using SnapshotStateList
-
+//List of values of screen
 sealed class Screen(val route: String) {
     object Onboarding : Screen(Routes.ONBOARDING)
     object Home : Screen(Routes.HOME)
@@ -14,11 +14,14 @@ sealed class Screen(val route: String) {
 }
 
 class AppNavigationState {
+    //Stack used for navigation between screens
     private val _backStackInternal = mutableStateListOf<Screen>()
     val backStack: List<Screen>
         @Composable get() = _backStackInternal.toList().subList(0, _topIndex + 1)
+    //Top index of stack
     private var _topIndex by mutableStateOf(-1)
 
+    //Cuurent top value
     val currentScreen: Screen?
         @Composable get() =  derivedStateOf {
             if (_topIndex >= 0 && _topIndex < _backStackInternal.size) {
@@ -27,16 +30,19 @@ class AppNavigationState {
                 null
             }
         }.value
+    //IsStackEmpty()
     val canGoBack: Boolean
         get() = _topIndex > 0
 
     init {
+        //Stack Initialization
         _backStackInternal.add(Screen.Onboarding)
         _topIndex = 0
         println("Navigation Init: Stack=${_backStackInternal.map { it.route }}, TopIndex=$_topIndex")
     }
 
     fun navigateTo(screen: Screen) {
+
         if (_topIndex >= 0 && _backStackInternal.isNotEmpty() && _backStackInternal[_topIndex].route == screen.route) {
             println("Navigation: Already on ${screen.route}")
             return
@@ -45,8 +51,7 @@ class AppNavigationState {
         if (_topIndex < _backStackInternal.size - 1) {
             _backStackInternal.removeRange(_topIndex + 1, _backStackInternal.size)
         }
-
-        println("Navigation: Pushing ${screen.route}")
+        //Pushing new screen to stack
         _backStackInternal.add(screen)
         _topIndex++
         println("Navigation State: Stack=${_backStackInternal.map { it.route }}, TopIndex=$_topIndex")
@@ -54,7 +59,7 @@ class AppNavigationState {
     }
 
     fun finishOnboarding() {
-        println("Navigation: Finishing Onboarding, resetting stack to Home")
+        //Clearing and reinitializing stack
         _backStackInternal.clear()
         _backStackInternal.add(Screen.Home)
         _topIndex = 0
@@ -64,9 +69,8 @@ class AppNavigationState {
 
     fun navigateBack() {
         if (canGoBack) {
-            println("Navigation: Navigating back from ${_backStackInternal[_topIndex].route}")
+            //Pop function
             _topIndex--
-            println("Navigation State: Stack=${_backStackInternal.map { it.route }}, TopIndex=$_topIndex")
 
         } else {
             println("Navigation: Cannot go back from the initial screen.")
