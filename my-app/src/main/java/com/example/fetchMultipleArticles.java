@@ -332,16 +332,6 @@ public class fetchMultipleArticles {
         if (cluster == null || cluster.isEmpty()) return 0;
         return (int) cluster.stream().map(a -> a.sourceName).distinct().count();
     }
-
-    public static List<List<Article>> mergeSort(List<List<Article>> list) {
-        if (list.size() <= 1) return list;
-        int middle = list.size() / 2;
-        List<List<Article>> leftHalf = new ArrayList<>(list.subList(0, middle));
-        List<List<Article>> rightHalf = new ArrayList<>(list.subList(middle, list.size()));
-        List<List<Article>> sortedLeft = mergeSort(leftHalf);
-        List<List<Article>> sortedRight = mergeSort(rightHalf);
-        return merge(sortedLeft, sortedRight);
-    }
     //Categorizes news article by running pattern matching on the url
     public static String categorizeNewsUrl(String url) {
         if (url == null || url.isEmpty()) {
@@ -386,6 +376,16 @@ public class fetchMultipleArticles {
         }
         return false;
     }
+    public static List<List<Article>> mergeSort(List<List<Article>> list) {
+        if (list.size() <= 1) return list;
+        int middle = list.size() / 2;
+        List<List<Article>> leftHalf = new ArrayList<>(list.subList(0, middle));
+        List<List<Article>> rightHalf = new ArrayList<>(list.subList(middle, list.size()));
+        List<List<Article>> sortedLeft = mergeSort(leftHalf);
+        List<List<Article>> sortedRight = mergeSort(rightHalf);
+        return merge(sortedLeft, sortedRight);
+    }
+
     private static List<List<Article>> merge(List<List<Article>> left, List<List<Article>> right) {
         List<List<Article>> result = new ArrayList<>();
         int leftIndex = 0;
@@ -425,7 +425,7 @@ public class fetchMultipleArticles {
 
 /*Above two functions is for the implementation of merge sort, which is modified slightly so as to sort the clusters first based on
  the no. of sources and if there is a tie, it is broken using the cluster with most size*/
- */
+
 
 
 
