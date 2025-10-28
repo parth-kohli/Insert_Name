@@ -21,7 +21,7 @@ class AppNavigationState {
     //Top index of stack
     private var _topIndex by mutableStateOf(-1)
 
-    //Cuurent top value
+    //Cuurent top value (auto updates when top index is changed)
     val currentScreen: Screen?
         @Composable get() =  derivedStateOf {
             if (_topIndex >= 0 && _topIndex < _backStackInternal.size) {
