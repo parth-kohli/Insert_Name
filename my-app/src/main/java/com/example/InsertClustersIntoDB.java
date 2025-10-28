@@ -13,12 +13,13 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Scanner;
 
 public class InsertClustersIntoDB {
 
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/News?useSSL=false";
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/News?useSSL=false&allowPublicKeyRetrieval=true";
     private static final String DB_USER = "root";
-    private static final String DB_PASS = "parthsarth9541";
+    private static  String DB_PASS ;
 
     private static final String SQL_INSERT_NEWS_ARTICLE =
             "INSERT INTO NewsArticles (headline, description, article, imageUrl, date, category, centerBias, leftBias, rightBias, source) " +
@@ -30,6 +31,9 @@ public class InsertClustersIntoDB {
 
     public static void main(String[] args) {
         try {
+            System.out.println("Enter DB password: ");
+            Scanner scanner = new Scanner(System.in);
+            DB_PASS=scanner.nextLine();
             ModelTrainer.TrainedModels trainedModels = ModelTrainer.trainModels();
             List<List<Article>> clusters = fetchMultipleArticles.fetchAndClusterArticles(trainedModels);
             try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS)) {

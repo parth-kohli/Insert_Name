@@ -48,6 +48,7 @@ public class NewsAPI {
     public List<NewsArticle> getArticlesByCategory(@RequestParam String name) {
         return newsArticleRepository.findTop20ByCategoryIgnoreCaseOrderByDateDesc(name);
     }
+    //Endpoint for: findArticlesByDate(today)
     @GetMapping("/news/today")
     public List<NewsArticle> getTodaysNews() {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");

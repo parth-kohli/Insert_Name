@@ -11,9 +11,9 @@ public class Article {
     final String imageUrl;
     final String content;
     String category;
-    final Float leftBias;
-    final Float centerBias;
-    final Float rightBias;
+    Float leftBias;
+    Float centerBias;
+    Float rightBias;
 
     public Article(String title, String url, String sourceName, String publishedAt,
                    String description, String imageUrl, String content, String category,

@@ -4,7 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-
+//data class Biased Articles with getter and setter functions
 @Entity
 @Table(name = "BiasedArticles")
 public class BiasedArticle {
@@ -24,9 +24,6 @@ public class BiasedArticle {
     private Float rightBias;
     private String source;
     private Integer articleId;
-
-    // --- Getters and Setters ---
-    // (Required for JPA and JSON serialization)
 
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }

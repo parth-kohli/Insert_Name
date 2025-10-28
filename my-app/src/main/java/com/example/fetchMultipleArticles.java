@@ -27,6 +27,7 @@ public class fetchMultipleArticles {
     private static final String CACHE_FILE = "cached_articles"+LocalDate.now().toString()+".json";
     private static final HttpClient client = HttpClient.newHttpClient();
     private static final Set<String> STOP_WORDS = Set.of("a", "an", "the", "in", "on", "at", "for", "with", "is", "are", "was", "were", "to", "of", "and", "says", "posts", "after", "by");
+    //Mapping from each news source to its id
     private static final Map<String, String> DOMAIN_TO_SOURCE_ID = Map.ofEntries(
             Map.entry("apnews.com", "associated-press"), Map.entry("reuters.com", "reuters"),
             Map.entry("bbc.com", "bbc-news"), Map.entry("wsj.com", "the-wall-street-journal"),
@@ -46,30 +47,34 @@ public class fetchMultipleArticles {
             Map.entry("WORLD", List.of("/world", "world.", "/international", "global")),
             Map.entry("OPINION", List.of("/opinion", "opinion.", "/editorial", "/commentary"))
     );
-    private static TfidfVectorizer vectorizer;
-    private static MultinomialNaiveBayes model;
+    static TfidfVectorizer vectorizer;
+    static MultinomialNaiveBayes model;
+
     public static List<List<Article>> fetchAndClusterArticles(ModelTrainer.TrainedModels trainedModels) {
+        //Vectorizer and training model for Naive Bayes is Initialized
         fetchMultipleArticles.vectorizer = trainedModels.vectorizer;
         fetchMultipleArticles.model = trainedModels.classifier;
-        String topicQuery = "(politics OR government OR election OR congress OR court OR world)";
         List<String> domainsToSearch = Arrays.asList("apnews.com", "msnbc.com", "foxnews.com", "reuters.com", "huffpost.com", "nypost.com", "bbc.com", "theguardian.com", "wsj.com", "cbsnews.com");
-        System.out.println("🔎 Checking for cached articles at '" + CACHE_FILE + "'...");
+        System.out.println("Checking for cached articles at '" + CACHE_FILE + "'...");
+        //If articles are present in cache it gets the values
         List<Article> allArticles = loadArticlesFromCache();
         if (allArticles.isEmpty()) {
-            System.out.println("   Cache not found or empty. Fetching from API...");
-            allArticles = fetchAllArticles(domainsToSearch, 100, topicQuery);
+            System.out.println("Cache not found or empty. Fetching from API...");
+            allArticles = fetchAllArticles(domainsToSearch, 100, "");
             saveArticlesToCache(allArticles);
-            System.out.println("📰 Created a pool of " + allArticles.size() + " articles and saved to cache.");
+            System.out.println("Found " + allArticles.size() + " articles and saved to cache.");
         } else {
-            System.out.println("📰 Loaded " + allArticles.size() + " articles from cache.");
+            System.out.println("Loaded " + allArticles.size() + " articles from cache.");
         }
         if (allArticles.isEmpty()) {
             System.out.println("Could not fetch or load any valid articles.");
             return Collections.emptyList();
         }
         System.out.println("\nClustering articles to find specific events...");
+        //Clustering similar articles together
         List<List<Article>> clusters = clusterArticles(allArticles);
         System.out.println("Processing " + clusters.size() + " clusters to concatenate categories...");
+        //Groups all the categories in the cluster and puts it in the main article i.e. the first element
         for (List<Article> cluster : clusters) {
             if (cluster == null || cluster.isEmpty()) {
                 continue;
@@ -90,12 +95,13 @@ public class fetchMultipleArticles {
         }
         System.out.println("Sorting " + clusters.size() + " clusters using custom Merge Sort...");
         List<List<Article>> sortedClusters = mergeSort(clusters);
+        //Returns a list of 10 clusters with atleast 1 biased article
         return sortedClusters.stream()
                 .filter(cluster -> cluster.size() > 1)
                 .limit(10)
                 .collect(Collectors.toList());
     }
-
+    //Scrapes article from the url of the news
     private static String scrapeArticle(String url) {
         try {
             Document doc = Jsoup.connect(url).timeout(10000).get(); 
@@ -109,8 +115,8 @@ public class fetchMultipleArticles {
             return null;
         }
     }
-
-    private static Map<String, Double> calculateBiasScores(String text) {
+    //Calculates and maps the bias scores to a Hash Map and returns the value
+    public static Map<String, Double> calculateBiasScores(String text) {
         if (vectorizer == null || model == null || text == null || text.isBlank()) {
             return Map.of("Left", 0.33, "Center", 0.34, "Right", 0.33);
         }
@@ -127,7 +133,7 @@ public class fetchMultipleArticles {
         );
     }
 
-
+    //Gets the response from the api
     private static List<Article> fetchAllArticles(List<String> domains, int countPerSource, String topicQuery) {
         Set<Article> articleSet = new LinkedHashSet<>();
         LocalDate yesterday = LocalDate.now().minusDays(1);
@@ -135,6 +141,7 @@ public class fetchMultipleArticles {
 
         for (String domain : domains) {
             try {
+                //Api call to fetch the JSON response
                 String queryParam = DOMAIN_TO_SOURCE_ID.containsKey(domain) ? "&sources=" + DOMAIN_TO_SOURCE_ID.get(domain) : "&domains=" + domain;
                 String url = "https://newsapi.org/v2/everything?q=" + ""
                         + "&from=" + yesterdayStr + "&to=" + yesterdayStr
@@ -146,7 +153,7 @@ public class fetchMultipleArticles {
                 if (!"ok".equals(json.optString("status"))) continue;
 
                 JSONArray articles = json.getJSONArray("articles");
-
+                //Maps JSON values to the article
                 for (int i = 0; i < articles.length(); i++) {
                     JSONObject articleJson = articles.getJSONObject(i);
                     String title = articleJson.optString("title");
@@ -160,21 +167,23 @@ public class fetchMultipleArticles {
                     String sourceName = articleJson.getJSONObject("source").getString("name");
                     String articleUrl = articleJson.getString("url");
                     System.out.println("   -> Scraping: " + title);
+                    //Scrapes article at url to get body
                     String fullArticleText = scrapeArticle(articleUrl);
                     String category = categorizeNewsUrl(url);
                     
                     String textToAnalyze;
                     String contentForDB;
-
+                    //Forms the text whose score is calculated by Naive Bayes
                     if (fullArticleText != null && !fullArticleText.isBlank()) {
                         textToAnalyze = title + " " + description + " " + fullArticleText;
                         contentForDB = fullArticleText;
                     } else {
-                        System.out.println("   ! Scrape failed, falling back to snippet for: " + title);
+                        System.out.println("   Scrape failed, falling back to snippet for: " + title);
                         String apiSnippet = articleJson.optString("content");
                         textToAnalyze = title + " " + description + " " + apiSnippet;
                         contentForDB = (apiSnippet != null && !apiSnippet.isBlank()) ? apiSnippet : "No content available.";
                     }
+                    // Finds the bias score for each article
                     Map<String, Double> biasScores = calculateBiasScores(textToAnalyze);
                     articleSet.add(new Article(
                             title, articleUrl, sourceName, publishedAt,
@@ -192,7 +201,7 @@ public class fetchMultipleArticles {
         return new ArrayList<>(articleSet);
     }
 
-    
+    //Function to convert articles to JSON file
     private static void saveArticlesToCache(List<Article> articles) {
         try {
             Gson gson = new Gson();
@@ -202,7 +211,7 @@ public class fetchMultipleArticles {
             System.err.println("Error saving articles to cache: " + e.getMessage());
         }
     }
-
+    // Function to load articles from cache, returns empty list if no cache
     private static List<Article> loadArticlesFromCache() {
         try {
             Path path = Paths.get(CACHE_FILE);
@@ -217,45 +226,73 @@ public class fetchMultipleArticles {
             return Collections.emptyList();
         }
     }
-
-    private static List<List<Article>> clusterArticles(List<Article> articles) {
+    //Clusters article based on similarity score bw 2 articles
+    public static List<List<Article>> clusterArticles(List<Article> articles) {
         List<List<Article>> clusters = new ArrayList<>();
         Set<Article> clusteredArticles = new HashSet<>();
-
+        //Loops through every article to form cluster
         for (Article articleA : articles) {
             if (clusteredArticles.contains(articleA)) continue;
             List<Article> newCluster = new ArrayList<>();
             newCluster.add(articleA);
             clusteredArticles.add(articleA);
+            //Compares similarity with all other articles and if they are same and they don't already exist in a cluster they are added to a cluster
             for (Article articleB : articles) {
                 if (!articleA.equals(articleB) && !clusteredArticles.contains(articleB) && isTitleSimilar(articleA.title, articleB.title)) {
                     newCluster.add(articleB);
                     clusteredArticles.add(articleB);
                 }
             }
-            clusters.add(newCluster);
+            clusters.add(sortCluster(newCluster));
         }
         return clusters;
     }
+    //Sorts cluster so that max center bias score is at the first element
+    private  static List<Article> sortCluster( List<Article> cluster){
+        if (cluster.size()<=1) return cluster;
+        int maxIndex =0;
+        Article maxArticle;
+        float maxVal = cluster.get(0).centerBias;
+        for (int i =0; i<cluster.size(); i++){
+            if (cluster.get(i).centerBias>maxVal){
+                maxVal= cluster.get(i).centerBias;
+                maxIndex = i;
+            }
+        }
+        maxArticle=cluster.get(maxIndex);
+        cluster.remove(maxIndex);
+        cluster.add(maxIndex,cluster.get(0));
+        cluster.remove(0);
+        cluster.add(0, maxArticle);
+        return cluster;
 
+    }
+    //Uses string comparison to find similarity between 2 articles
     private static boolean isTitleSimilar(String title1, String title2) {
+        //Defines weightage of proper and common keywords
         final double ENTITY_KEYWORD_THRESHOLD = 0.20;
         final double PURE_KEYWORD_THRESHOLD = 0.4;
+        //Finds 2 word proper nouns eg: Joe Biden by finding title case using regex
         Set<String> multiWordEntities1 = getEntities(title1, "\\b[A-Z][a-z]+(?:\\s[A-Z][a-z]+){1,2}\\b");
         Set<String> multiWordEntities2 = getEntities(title2, "\\b[A-Z][a-z]+(?:\\s[A-Z][a-z]+){1,2}\\b");
+        //Finds 1 word proper nouns eg: Biden by finding title case using regex
         Set<String> singleWordEntities1 = getEntities(title1, "\\b[A-Z][a-z]{3,}\\b");
         Set<String> singleWordEntities2 = getEntities(title2, "\\b[A-Z][a-z]{3,}\\b");
+        //Converts title to normal case
         String normTitle1 = normalizeTitle(title1);
         String normTitle2 = normalizeTitle(title2);
+
         Set<String> keywords1 = getKeywords(normTitle1);
         Set<String> keywords2 = getKeywords(normTitle2);
+        //checks for common elements between the proper nouns of title 1 & 2
         boolean entitiesMatch = !Collections.disjoint(multiWordEntities1, multiWordEntities2) ||
                 !Collections.disjoint(singleWordEntities1, singleWordEntities2);
+        // Uses Jaccard similarity to calculate and compare the score to threshold
         double keywordSimilarity = calculateJaccardSimilarity(keywords1, keywords2);
         if (entitiesMatch && keywordSimilarity >= ENTITY_KEYWORD_THRESHOLD) return true;
         return keywordSimilarity >= PURE_KEYWORD_THRESHOLD;
     }
-
+    //Makes string to lower case and replaces word numbers by symbols
     private static String normalizeTitle(String title) {
         return title.toLowerCase()
                 .replace("one", "1").replace("two", "2").replace("three", "3")
@@ -263,13 +300,13 @@ public class fetchMultipleArticles {
                 .replace("seven", "7").replace("eight", "8").replace("nine", "9")
                 .replace("ten", "10");
     }
-
+    //gets keywords by getting a word whose length > 2 and which is not in the list of stop words used
     private static Set<String> getKeywords(String normalizedText) {
         return Arrays.stream(normalizedText.replaceAll("[^a-z0-9\\s]", "").split("\\s+"))
                 .filter(word -> word.length() > 2 && !STOP_WORDS.contains(word))
                 .collect(Collectors.toSet());
     }
-
+    //Returns lowercase list of proper nouns after comparing regex
     private static Set<String> getEntities(String originalCaseTitle, String regex) {
         return Pattern.compile(regex)
                 .matcher(originalCaseTitle)
@@ -277,7 +314,7 @@ public class fetchMultipleArticles {
                 .map(mr -> mr.group().toLowerCase())
                 .collect(Collectors.toSet());
     }
-
+    //Uses jaccard similarity defined by J(A, B) = |A ∩ B| / |A ∪ B|
     private static double calculateJaccardSimilarity(Set<String> set1, Set<String> set2) {
         if (set1.isEmpty() || set2.isEmpty()) return 0.0;
         Set<String> intersection = new HashSet<>(set1);
@@ -286,18 +323,17 @@ public class fetchMultipleArticles {
         union.addAll(set2);
         return (double) intersection.size() / union.size();
     }
-
     private static String sendRequest(String url) throws Exception {
         HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url)).build();
         return client.send(request, HttpResponse.BodyHandlers.ofString()).body();
     }
-
+    //gets the number of unique sources in each cluster
     private static int getSourceDiversity(List<Article> cluster) {
         if (cluster == null || cluster.isEmpty()) return 0;
         return (int) cluster.stream().map(a -> a.sourceName).distinct().count();
     }
 
-    private static List<List<Article>> mergeSort(List<List<Article>> list) {
+    public static List<List<Article>> mergeSort(List<List<Article>> list) {
         if (list.size() <= 1) return list;
         int middle = list.size() / 2;
         List<List<Article>> leftHalf = new ArrayList<>(list.subList(0, middle));
@@ -306,6 +342,7 @@ public class fetchMultipleArticles {
         List<List<Article>> sortedRight = mergeSort(rightHalf);
         return merge(sortedLeft, sortedRight);
     }
+    //Categorizes news article by running pattern matching on the url
     public static String categorizeNewsUrl(String url) {
         if (url == null || url.isEmpty()) {
             return "UNKNOWN";
@@ -322,6 +359,7 @@ public class fetchMultipleArticles {
         }
         return "";
     }
+    //Pattern matching of string by brute force method
     private static boolean stringContains(String text, String keyword) {
         if (keyword == null || text == null) {
             return false;
@@ -384,6 +422,7 @@ public class fetchMultipleArticles {
         return result;
     }
 }
+
 
 
 

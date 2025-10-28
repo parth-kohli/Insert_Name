@@ -4,7 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-
+//data class News Articles with getter and setter functions
 @Entity
 @Table(name = "NewsArticles")
 public class NewsArticle {
@@ -24,8 +24,6 @@ public class NewsArticle {
     private Float rightBias;
     private String source;
 
-    // --- Getters and Setters ---
-    // (Required for JPA and JSON serialization)
 
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }

@@ -7,7 +7,6 @@ import java.util.List;
 @Repository
 public interface BiasedArticleRepository extends JpaRepository<BiasedArticle, Integer> {
 
-    // For: fetchBiasedNews(id)
-    // Spring Data JPA automatically creates the SQL query from this method name
+    //List of functions for BiasedArticles
     List<BiasedArticle> findByArticleId(Integer articleId);
 }
