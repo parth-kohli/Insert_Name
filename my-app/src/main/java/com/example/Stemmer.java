@@ -1,13 +1,13 @@
 package com.example;
 
 class Stemmer
-{  private char[] b;
-   private int i,   
-               i_end,
-               j, k;
-   private static final int INC = 50;
+{  private char[] b; // holds word being stemmed. Acts as a character buffer.
+   private int i,   // Current position (acts like a cursor that points to when a new character is added).
+               i_end, //Marks the final length of the stemmed word
+               j, k; //k-> points to the last letter of the word, j-> points to last letter of word stem.
+   private static final int INC = 50; //Buffer Increment.
    public Stemmer()
-   {  b = new char[INC];
+   {  b = new char[INC]; 
       i = 0;
       i_end = 0;
    }
@@ -27,9 +27,13 @@ class Stemmer
       }
       for (int c = 0; c < wLen; c++) b[i++] = w[c];
    }
-   public String toString() { return new String(b,0,i_end); }
-   public int getResultLength() { return i_end; }
-   public char[] getResultBuffer() { return b; }
+
+   //Above two functions are used to add words to the character buffer b.
+
+   public String toString() { return new String(b,0,i_end); } //Returns final stemmed word as a string
+   public int getResultLength() { return i_end; } //Returns the length of final stemmed word
+   public char[] getResultBuffer() { return b; } //Returns character buffer final stemmed word
+
    private final boolean cons(int i)
    {  switch (b[i])
       {  case 'a': case 'e': case 'i': case 'o': case 'u': return false;
@@ -37,6 +41,9 @@ class Stemmer
          default: return true;
       }
    }
+
+   // Above function returns true if the character is a consonant (If y is a the start of the word, it is considered to be a consonant). 
+
    private final int m()
    {  int n = 0;
       int i = 0;
@@ -62,16 +69,24 @@ class Stemmer
        }
    }
 
+/*Calculates measure. Measure is defined as [C](VC)^m[V], where C refers to a consonant and V refers to a vowel.
+and [] represents optionality. We are basically trying to find the number of times a sequence of vowels is followed by a sequence
+of consonants. the measure is used to prevent overstemming of already short words.*/
+
    private final boolean vowelinstem()
    {  int i; for (i = 0; i <= j; i++) if (! cons(i)) return true;
       return false;
    }
+
+//Above function check if a vowel is present int the stem.
 
    private final boolean doublec(int j)
    {  if (j < 1) return false;
       if (b[j] != b[j-1]) return false;
       return cons(j);
    }
+
+//Checks if the stem ends in 2 consonants.
 
    private final boolean cvc(int i)
    {  if (i < 2 || !cons(i) || cons(i-1) || !cons(i-2)) return false;
@@ -80,6 +95,8 @@ class Stemmer
       }
       return true;
    }
+
+//Checks if the 3 letters at i , i-1 and i-2 follow a CVC pattern and the consonant at i cannot be w, x or y.
 
    private final boolean ends(String s)
    {  int l = s.length();
@@ -90,6 +107,8 @@ class Stemmer
       return true;
    }
 
+//Above function returns whether the suffix ends with the string s.
+
    private final void setto(String s)
    {  int l = s.length();
       int o = j+1;
@@ -97,7 +116,11 @@ class Stemmer
       k = j+l;
    }
 
+//Above function replaces the current suffix (from j+1 to k) with new string s and updates k.
+
    private final void r(String s) { if (m() > 0) setto(s); }
+
+//Above function calls setto() only if measure > 0;
 
    private final void step1()
    {  if (b[k] == 's')
@@ -121,7 +144,11 @@ class Stemmer
      }
    }
 
+   //Above function deals with plurals, past tenses and present continuous words.
+
    private final void step2() { if (ends("y") && vowelinstem()) b[k] = 'i'; }
+
+   //Above function turns terminal y to i.
 
    private final void step3() { if (k == 0) return; switch (b[k-1])
    {
@@ -155,6 +182,8 @@ class Stemmer
        case 'g': if (ends("logi")) { r("log"); break; }
    } }
 
+// Above function maps various suffixes to a shorter suffixes.
+
    private final void step4() { switch (b[k])
    {
        case 'e': if (ends("icate")) { r("ic"); break; }
@@ -169,6 +198,8 @@ class Stemmer
        case 's': if (ends("ness")) { r(""); break; }
                  break;
    } }
+
+   //Above function helps with reducing common suffixes to the stem.
 
    private final void step5()
    {   if (k == 0) return; switch (b[k-1])
@@ -196,6 +227,8 @@ class Stemmer
        if (m() > 1) k = j;
    }
 
+//The above function further reduces if m()>1.
+
    private final void step6()
    {  j = k;
       if (b[k] == 'e')
@@ -204,6 +237,9 @@ class Stemmer
       }
       if (b[k] == 'l' && doublec(k) && m() > 1) k--;
    }
+
+  //The above function removes the final e if m()>1 or if there is not cvc pattern present. Also removes one l if it ends with ll
+  //and m()>1. 
 
    public void stem()
    {  k = i - 1;
