@@ -7,8 +7,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ModelTrainer {
+    static String parentDir = new File(System.getProperty("user.dir")).getParent();
 
-    private static final String TRAINING_DATA_PATH = "C:\\Users\\parth\\Desktop\\Parthyo\\News\\Insert_Name\\model_trainer";
+    private static final String TRAINING_DATA_PATH = parentDir + "/model_trainer";
+
 
     public static class TrainedModels {
         final TfidfVectorizer vectorizer;
