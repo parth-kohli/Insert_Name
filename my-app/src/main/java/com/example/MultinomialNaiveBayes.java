@@ -3,6 +3,7 @@ package com.example;
 import java.util.*;
 
 //It uses TF-IDF or term-frequency vectors as input and learns class-conditional probabilities for classification
+//It uses TF-IDF or term-frequency vectors as input and learns class-conditional probabilities for classification
 public class MultinomialNaiveBayes {
     private Map<String, Double> classPriors;                       //Stores prior probability of each class label: P(class)
     private Map<String, Map<Integer, Double>> featureLogProb;      //Nested map: for each class → (feature index → log P(feature | class))
@@ -12,17 +13,20 @@ public class MultinomialNaiveBayes {
     private double alpha = 1.0;                                    //Laplace smoothing constant (prevents zero probability issues)
 
     //Constructor: Initializes the ADT used (Maps)
-    public MultinomialNaiveBayes() {
-        this.classPriors = new HashMap<>();
+    public MultinomialNaiveBayes() {                        
+        this.classPriors = new HashMap<>();         
         this.featureLogProb = new HashMap<>();
     }
 
     //Trains the Naive Bayes model
+    //Trains the Naive Bayes model
     public void fit(List<double[]> data, List<String> labels) {
         int nSamples = data.size();
         if (nSamples == 0) return;
-        nFeatures = data.get(0).length;
+        nFeatures = data.get(0).length;              
 
+        //Group all documents by their class label
+        //ADT used: Map
         //Group all documents by their class label
         //ADT used: Map
         Map<String, List<double[]>> dataByClass = new HashMap<>();
@@ -31,13 +35,17 @@ public class MultinomialNaiveBayes {
         }
 
         //Extract all class names
+
+        //Extract all class names
         this.classes = dataByClass.keySet();
 
+        //Compute class prior probabilities, P(class) = (#documents_in_class / total_documents)
         //Compute class prior probabilities, P(class) = (#documents_in_class / total_documents)
         for (String label : classes) {
             classPriors.put(label, (double) dataByClass.get(label).size() / nSamples);
         }
 
+        //Compute conditional probabilities, P(feature | class)
         //Compute conditional probabilities, P(feature | class)
         for (String label : classes) {
             List<double[]> classData = dataByClass.get(label);
@@ -46,15 +54,19 @@ public class MultinomialNaiveBayes {
             double totalCount = 0.0;
 
             //Sum up all term counts across documents of the same class
+
+            //Sum up all term counts across documents of the same class
             for (double[] sample : classData) {
                 for (int j = 0; j < nFeatures; j++) {
                     featureCounts[j] += sample[j];
                 }
             }
-
+            
             //Compute total count of all features
             for (double count : featureCounts) totalCount += count;
 
+            //Apply Laplace smoothing and take logarithm to prevent underflow
+            //P(feature_j | class) = (featureCount_j + α) / (totalCount + α * nFeatures)
             //Apply Laplace smoothing and take logarithm to prevent underflow
             //P(feature_j | class) = (featureCount_j + α) / (totalCount + α * nFeatures)
             Map<Integer, Double> logProbs = new HashMap<>();
@@ -67,10 +79,12 @@ public class MultinomialNaiveBayes {
     }
 
     //Predicts the most likely class label for a given document vector
+    //Predicts the most likely class label for a given document vector
     public String predict(double[] vector) {
         String bestClass = null;
         double maxLogProb = Double.NEGATIVE_INFINITY;
 
+        //For each class, compute log P(class) + Σ [x_j * log P(feature_j | class)]
         //For each class, compute log P(class) + Σ [x_j * log P(feature_j | class)]
         for (String label : classes) {
             double logProb = Math.log(classPriors.get(label));
@@ -82,6 +96,7 @@ public class MultinomialNaiveBayes {
                 }
             }
             //Select the class with the highest total log probability
+            //Select the class with the highest total log probability
             if (logProb > maxLogProb) {
                 maxLogProb = logProb;
                 bestClass = label;
@@ -91,9 +106,11 @@ public class MultinomialNaiveBayes {
     }
 
     //Returns normalized class probabilities for a given document
+    //Returns normalized class probabilities for a given document
     public Map<String, Double> predict_proba(double[] vector) {
         Map<String, Double> logScores = new HashMap<>();
 
+        //Compute log-probabilities for all classes
         //Compute log-probabilities for all classes
         for (String label : classes) {
             double logProb = Math.log(classPriors.get(label));
@@ -108,9 +125,12 @@ public class MultinomialNaiveBayes {
         }
 
         //Use log-sum-exp to prevent numerical underflow
+        //Use log-sum-exp to prevent numerical underflow
         double maxLog = Collections.max(logScores.values());
         double sumExp = 0.0;
         Map<String, Double> probs = new HashMap<>();
+
+        //Exponentiate and normalize
 
         //Exponentiate and normalize
         for (String label : classes) {
@@ -120,9 +140,13 @@ public class MultinomialNaiveBayes {
         }
 
         //Normalize so that all probabilities add up to 1
+
+        //Normalize so that all probabilities add up to 1
         for (String label : classes) {
             probs.put(label, probs.get(label) / sumExp);
         }
+
+        //Return final probabilities for each class
 
         //Return final probabilities for each class
         return probs;
