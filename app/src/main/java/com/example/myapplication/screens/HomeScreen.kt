@@ -99,7 +99,7 @@ fun HomeScreen(innerPadding: PaddingValues, homeViewModel: HomeViewModel, onStar
                     modifier = Modifier
                         .fillMaxSize(), contentAlignment = Alignment.Center
                 ){
-                    Text(text = "No news to show")
+                    Text(text = "No news to show\nThe server might be down")
                 }
             }
             else {
